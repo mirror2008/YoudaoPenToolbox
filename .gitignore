@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+dist/
+.vs/
+*.user
+*.suo
+*.cache
+error.log
+adb_reverse_analysis/
+*.code-workspace
+scripts/
+Thumbs.db
+Desktop.ini
