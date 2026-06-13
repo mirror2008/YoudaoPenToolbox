@@ -1,0 +1,37 @@
+<Window x:Class="YoudaoPenToolbox.Views.UpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="正在更新"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        Background="{DynamicResource RegionBrush}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/SkinDefault.xaml"/>
+                <ResourceDictionary Source="pack://application:,,,/HandyControl;component/Themes/Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Border Margin="20" Padding="20" CornerRadius="8"
+            Background="{DynamicResource SecondaryRegionBrush}">
+        <StackPanel>
+            <TextBlock Text="发现新版本" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+            <TextBlock x:Name="VersionTextBlock" TextWrapping="Wrap" Margin="0,0,0,8"
+                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+            <TextBlock x:Name="StatusTextBlock" Text="正在下载更新..." TextWrapping="Wrap" Margin="0,0,0,12"
+                       Foreground="{DynamicResource SecondaryTextBrush}"/>
+            <ProgressBar x:Name="DownloadProgressBar" Height="8" Minimum="0" Maximum="100" Margin="0,0,0,8"/>
+            <TextBlock x:Name="ProgressTextBlock" HorizontalAlignment="Right" Margin="0,0,0,12"
+                       Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+            <StackPanel x:Name="ActionPanel" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
+                <Button x:Name="RetryButton" Content="重试" Width="96" Height="36" Margin="0,0,8,0" Click="RetryButton_Click"/>
+                <Button x:Name="ExitButton" Content="退出" Width="96" Height="36" Click="ExitButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>
