@@ -1,5 +1,5 @@
 using System.Windows;
-using System.Windows.Media;
+using YoudaoPenToolbox.Helpers;
 using YoudaoPenToolbox.Models;
 
 namespace YoudaoPenToolbox.Views
@@ -9,6 +9,7 @@ namespace YoudaoPenToolbox.Views
         public InstallConfirmDialog(AmrPackageInfo package, string deviceName)
         {
             InitializeComponent();
+            DialogAnimationHelper.Register(this);
             Package = package;
             DeviceName = deviceName;
 

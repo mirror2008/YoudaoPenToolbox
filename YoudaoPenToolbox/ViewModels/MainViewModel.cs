@@ -52,6 +52,7 @@ namespace YoudaoPenToolbox.ViewModels
         private string _cliParam2Placeholder = "参数2";
         private bool _cliShowParam1;
         private bool _cliShowParam2;
+        private int _cliHelpMaxHeight = 80;
         private string _adbPath;
         private string _searchAppText;
         private string _startPage = "index";
@@ -333,6 +334,20 @@ namespace YoudaoPenToolbox.ViewModels
             set => SetProperty(ref _cliShowParam2, value);
         }
 
+        public bool CliHasParams => CliShowParam1 || CliShowParam2;
+
+        public bool CliSingleParamLayout => CliShowParam1 && !CliShowParam2;
+
+        public bool CliDualParamLayout => CliShowParam1 && CliShowParam2;
+
+        public bool CliShowHelpPanel => !string.IsNullOrWhiteSpace(CliHelpText);
+
+        public int CliHelpMaxHeight
+        {
+            get => _cliHelpMaxHeight;
+            private set => SetProperty(ref _cliHelpMaxHeight, value);
+        }
+
         public string AdbPath
         {
             get => _adbPath;
@@ -346,6 +361,11 @@ namespace YoudaoPenToolbox.ViewModels
         }
 
         public string AppVersion { get; }
+
+        public void SetThemePreference(AppThemePreference preference)
+        {
+            AppThemeService.Instance.SetPreference(preference);
+        }
 
         public bool NeedsAdbUnlock
         {
@@ -952,7 +972,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             var processName = SelectedProcess.ShortName;
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"确定终结以下进程？\n\n" +
                 $"PID: {SelectedProcess.Pid}\n" +
                 $"命令: {SelectedProcess.Command}\n" +
@@ -1016,7 +1036,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             var processName = SelectedProcess.ShortName;
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"确定重启以下进程？\n\n" +
                 $"PID: {SelectedProcess.Pid}\n" +
                 $"当前命令: {SelectedProcess.Command}\n\n" +
@@ -1246,6 +1266,7 @@ namespace YoudaoPenToolbox.ViewModels
                 CliPreviewCommand = string.Empty;
                 CliShowParam1 = false;
                 CliShowParam2 = false;
+                UpdateCliLayoutMetrics();
                 return;
             }
 
@@ -1269,7 +1290,36 @@ namespace YoudaoPenToolbox.ViewModels
                 CliParam2Placeholder = p2.Placeholder ?? p2.Name;
             }
 
+            UpdateCliLayoutMetrics();
             UpdateCliPreview();
+        }
+
+        private void UpdateCliLayoutMetrics()
+        {
+            OnPropertyChanged(nameof(CliHasParams));
+            OnPropertyChanged(nameof(CliSingleParamLayout));
+            OnPropertyChanged(nameof(CliDualParamLayout));
+            OnPropertyChanged(nameof(CliShowHelpPanel));
+
+            if (string.IsNullOrWhiteSpace(CliHelpText))
+            {
+                CliHelpMaxHeight = 0;
+                return;
+            }
+
+            var lines = CliHelpText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var estimatedLines = 0;
+            foreach (var line in lines)
+            {
+                var length = line?.Length ?? 0;
+                estimatedLines += Math.Max(1, (length + 52) / 53);
+            }
+
+            estimatedLines = Math.Max(estimatedLines, lines.Length);
+            const int lineHeight = 20;
+            const int minHeight = 40;
+            const int maxHeight = 168;
+            CliHelpMaxHeight = Math.Min(Math.Max(estimatedLines * lineHeight, minHeight), maxHeight);
         }
 
         private void UpdateCliPreview()
@@ -1385,7 +1435,7 @@ namespace YoudaoPenToolbox.ViewModels
                 var platform = await _loliInstallService.DetectPlatformAsync(SelectedDevice.Serial).ConfigureAwait(true);
                 if (!platform.IsSupported)
                 {
-                    System.Windows.MessageBox.Show(
+                    AppMessageBox.Show(
                         $"未能自动识别设备芯片类型，无法选择安装包。\n\n{platform.DetectionDetail}",
                         "无法安装 Loli",
                         MessageBoxButton.OK,
@@ -1397,7 +1447,7 @@ namespace YoudaoPenToolbox.ViewModels
                 StatusMessage = $"已识别 {platform.PlatformLabel}，正在查询最新版本...";
                 var release = await _loliInstallService.GetLatestReleaseAsync(platform).ConfigureAwait(true);
 
-                var confirm = System.Windows.MessageBox.Show(
+                var confirm = AppMessageBox.Show(
                     $"设备：{SelectedDevice.DisplayName}\n" +
                     $"平台：{platform.PlatformLabel}\n" +
                     $"版本：v{release.VersionText}\n" +
@@ -1540,7 +1590,7 @@ namespace YoudaoPenToolbox.ViewModels
                 var backupResult = await BackupAppInternalAsync(app, backupPath, "受保护系统应用卸载前自动备份").ConfigureAwait(true);
                 if (!backupResult.Success)
                 {
-                    var force = System.Windows.MessageBox.Show(
+                    var force = AppMessageBox.Show(
                         $"自动备份失败：\n{backupResult.Message ?? "未知错误"}\n\n仍要强制卸载 [{app.Name}] 吗？\n（将无法通过 AMR 找回）",
                         "备份失败",
                         MessageBoxButton.YesNo,
@@ -1557,7 +1607,7 @@ namespace YoudaoPenToolbox.ViewModels
                     backupPath = backupResult.LocalAmrPath;
                 }
 
-                var finalConfirm = System.Windows.MessageBox.Show(
+                var finalConfirm = AppMessageBox.Show(
                     BuildProtectedFinalConfirmMessage(app, backupPath),
                     "确认卸载系统应用",
                     MessageBoxButton.YesNo,
@@ -1569,7 +1619,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
             else
             {
-                var backupChoice = System.Windows.MessageBox.Show(
+                var backupChoice = AppMessageBox.Show(
                     $"即将卸载 [{app.Name}] (ID: {app.AppId})。\n\n卸载前是否先备份 AMR？",
                     "卸载应用",
                     MessageBoxButton.YesNoCancel,
@@ -1597,7 +1647,7 @@ namespace YoudaoPenToolbox.ViewModels
                     var backupResult = await BackupAppInternalAsync(app, dlg.FileName, "卸载前备份").ConfigureAwait(true);
                     if (!backupResult.Success)
                     {
-                        var proceed = System.Windows.MessageBox.Show(
+                        var proceed = AppMessageBox.Show(
                             $"备份失败：\n{backupResult.Message ?? "未知错误"}\n\n是否仍继续卸载？",
                             "备份失败",
                             MessageBoxButton.YesNo,
@@ -1613,7 +1663,7 @@ namespace YoudaoPenToolbox.ViewModels
                     }
                 }
 
-                var confirm = System.Windows.MessageBox.Show(
+                var confirm = AppMessageBox.Show(
                     $"确定卸载 [{app.Name}] (ID: {app.AppId})？\n\n此操作不可撤销。",
                     "确认卸载",
                     MessageBoxButton.YesNo,
@@ -1630,7 +1680,7 @@ namespace YoudaoPenToolbox.ViewModels
         private static bool ConfirmProtectedSystemUninstall(InstalledApp app)
         {
             var backupDir = ProtectedSystemAppPolicy.GetDefaultBackupDirectory();
-            var result = System.Windows.MessageBox.Show(
+            var result = AppMessageBox.Show(
                 $"【系统应用 · 谨慎卸载】\n\n" +
                 $"「{app.Name}」属于受保护的系统应用，卸载可能导致功能异常（如录音、查词、桌面等）。\n\n" +
                 $"若您执意卸载：\n" +
@@ -1721,7 +1771,7 @@ namespace YoudaoPenToolbox.ViewModels
 
                 if (!string.IsNullOrWhiteSpace(backupPath) && System.IO.File.Exists(backupPath))
                 {
-                    System.Windows.MessageBox.Show(
+                    AppMessageBox.Show(
                         $"应用 [{app.Name}] 已执行卸载。\n\n" +
                         $"AMR 备份位置：\n{backupPath}\n\n" +
                         "如需找回应用，请将此 .amr 文件拖回工具箱底部安装区进行安装。",
@@ -1794,7 +1844,7 @@ namespace YoudaoPenToolbox.ViewModels
                 ? "将从设备安装目录打包生成 AMR，可用于同机型重新安装。"
                 : "这是系统/内置应用。备份文件仅供存档，设备通常禁止通过 miniapp_cli 重复安装此类应用。";
 
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"备份应用：{app.Name}\nAppId: {app.AppId}\n版本: {app.Version}\n\n" +
                 $"安装目录：{app.InstallPath ?? app.PackageDir}\n\n{warning}\n\n是否继续？",
                 "备份为 AMR",
@@ -1819,7 +1869,7 @@ namespace YoudaoPenToolbox.ViewModels
                 {
                     Growl.Success(result.Message);
                     StatusMessage = result.Message;
-                    System.Windows.MessageBox.Show(
+                    AppMessageBox.Show(
                         $"应用：{app.Name}\nAppId：{app.AppId}\n\n已保存到：\n{result.LocalAmrPath}\n\n" +
                         $"包内约 {result.FileCount} 个文件，大小 {AmrPackageInfo.FormatSize(result.ArchiveSizeBytes)}。\n" +
                         "可将此 .amr 拖回工具箱安装。",
@@ -2136,7 +2186,7 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"确定重启设备 {SelectedDevice.DisplayName} 吗？\n重启后 ADB 连接会断开。",
                 "重启设备",
                 MessageBoxButton.YesNo,
@@ -2176,7 +2226,7 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"确定关闭设备 {SelectedDevice.DisplayName} 吗？\n关机后需手动开机才能重新连接。",
                 "关闭设备",
                 MessageBoxButton.YesNo,
@@ -2674,7 +2724,7 @@ namespace YoudaoPenToolbox.ViewModels
                     "\n\n此操作不可撤销。";
             }
 
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 confirmMessage,
                 items.Count == 1 ? "删除文件" : "批量删除",
                 MessageBoxButton.YesNo,
@@ -2903,7 +2953,7 @@ namespace YoudaoPenToolbox.ViewModels
                 }
 
                 var readOnly = partition.IsCritical;
-                var confirm = System.Windows.MessageBox.Show(
+                var confirm = AppMessageBox.Show(
                     $"即将挂载分区 [{partition.Name}]\n\n" +
                     $"块设备: {partition.ByNamePath ?? partition.BlockDevicePath}\n" +
                     $"挂载点: {mountDialog.InputText}\n" +
@@ -2952,7 +3002,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             var partition = SelectedBlockPartition;
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"即将卸载分区 [{partition.Name}]\n\n" +
                 $"挂载点: {partition.MountPoint}\n" +
                 $"块设备: {partition.BlockDevicePath}\n\n" +
@@ -3226,7 +3276,7 @@ namespace YoudaoPenToolbox.ViewModels
 
             var outputDir = PartitionBackupService.BuildBatchBackupDirectory(SelectedDevice.Serial);
             var batchStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 BuildBatchExtractConfirmMessage(selected, outputDir),
                 "批量提取分区",
                 MessageBoxButton.YesNo,
@@ -3261,7 +3311,7 @@ namespace YoudaoPenToolbox.ViewModels
 
             var outputDir = PartitionBackupService.BuildBatchBackupDirectory(SelectedDevice.Serial);
             var presetNames = string.Join(", ", preset.Select(p => p.Name));
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 BuildBatchExtractConfirmMessage(preset, outputDir, $"常用套装: {presetNames}"),
                 "一键备份常用套装",
                 MessageBoxButton.YesNo,
@@ -3318,7 +3368,7 @@ namespace YoudaoPenToolbox.ViewModels
                 ? $"\n\n警告: 该分区当前已挂载 ({partition.MountPoint})，提取内容可能不一致。"
                 : string.Empty;
 
-            var confirm = System.Windows.MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 $"将从设备读取分区 [{partition.Name}]\n" +
                 $"块设备: {partition.ByNamePath}\n" +
                 $"大小: {partition.SizeDisplay}\n" +
@@ -3369,7 +3419,7 @@ namespace YoudaoPenToolbox.ViewModels
 
                     if (showPerItemCompletionDialog)
                     {
-                        System.Windows.MessageBox.Show(
+                        AppMessageBox.Show(
                             $"{itemTitle} 已完成。\n\n文件: {savedPath}",
                             "完成",
                             MessageBoxButton.OK,
@@ -3398,7 +3448,7 @@ namespace YoudaoPenToolbox.ViewModels
                     body += "\n\n失败:\n" + string.Join("\n", failed);
                 }
 
-                System.Windows.MessageBox.Show(
+                AppMessageBox.Show(
                     $"{operationTitle} 完成。\n\n{body}",
                     failed.Count > 0 ? "部分完成" : "完成",
                     MessageBoxButton.OK,
@@ -3448,7 +3498,7 @@ namespace YoudaoPenToolbox.ViewModels
                 ? $"警告: 该分区当前已挂载 ({partition.MountPoint})，刷写可能导致文件系统损坏。\n\n"
                 : string.Empty;
 
-            var warning = System.Windows.MessageBox.Show(
+            var warning = AppMessageBox.Show(
                 $"【高危操作】即将刷写分区 [{partition.Name}]\n\n" +
                 $"块设备: {partition.ByNamePath}\n" +
                 $"分区大小: {partition.SizeDisplay}\n" +
@@ -3469,7 +3519,7 @@ namespace YoudaoPenToolbox.ViewModels
 
             if (partition.IsCritical)
             {
-                var typed = System.Windows.MessageBox.Show(
+                var typed = AppMessageBox.Show(
                     $"[{partition.Name}] 属于关键分区。\n\n" +
                     "请再次确认你完全了解风险。\n" +
                     "若不确定，请立即取消。",
@@ -3527,7 +3577,7 @@ namespace YoudaoPenToolbox.ViewModels
                 StatusMessage = $"{operationName} 完成";
                 if (showCompletionDialog)
                 {
-                    System.Windows.MessageBox.Show(
+                    AppMessageBox.Show(
                         $"{operationName} 已完成。\n\n{resultPath}",
                         "完成",
                         MessageBoxButton.OK,

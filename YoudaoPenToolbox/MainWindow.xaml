@@ -4,19 +4,66 @@
         xmlns:hc="https://handyorg.github.io/handycontrol"
         xmlns:conv="clr-namespace:YoudaoPenToolbox.Converters"
         Title="有道词典笔工具箱"
-        Width="1280" Height="820"
-        MinWidth="1024" MinHeight="680"
+        Width="1440" Height="940"
+        MinWidth="1440" MaxWidth="1440"
+        MinHeight="940" MaxHeight="940"
+        ResizeMode="CanMinimize"
         WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI, Microsoft YaHei UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
         Background="{DynamicResource RegionBrush}">
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
         <conv:BoolToYesNoConverter x:Key="BoolToYesNo"/>
         <Style x:Key="StatCard" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="18,16"/>
             <Setter Property="Margin" Value="0,0,12,0"/>
-            <Setter Property="MinWidth" Value="150"/>
+            <Setter Property="MinWidth" Value="158"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.08" Color="#000000"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform Y="0"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                 To="-3" Duration="0:0:0.28">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                                 To="0" Duration="0:0:0.22">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="StatTitle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
@@ -24,34 +71,124 @@
             <Setter Property="Margin" Value="0,0,0,6"/>
         </Style>
         <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="FontSize" Value="20"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+        <Style x:Key="StatProgressBar" TargetType="ProgressBar">
+            <Setter Property="Margin" Value="0,10,0,0"/>
+        </Style>
+        <Style x:Key="ThemeSegmentButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SegmentBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SegmentBorder"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                             To="1.03" Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation Storyboard.TargetName="SegmentBorder"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                             To="1.03" Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="SegmentBorder"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                                             To="1" Duration="0:0:0.18"/>
+                                            <DoubleAnimation Storyboard.TargetName="SegmentBorder"
+                                                             Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                             To="1" Duration="0:0:0.18"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid x:Name="RootContent" Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="*" MinHeight="0"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <DockPanel Grid.Row="0" Margin="0,0,0,16">
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                <TextBlock Text="有道词典笔工具箱" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="4" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="百宝盒" Foreground="White" FontSize="11"/>
-                </Border>
-                <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" VerticalAlignment="Center" Margin="10,0,0,0"
-                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                <TextBox Text="{Binding AdbPath, UpdateSourceTrigger=PropertyChanged}" Width="320" Margin="0,0,8,0"
-                         hc:InfoElement.Placeholder="adb.exe 路径"/>
-                <Button Content="浏览" Command="{Binding BrowseAdbPathCommand}" Margin="0,0,8,0"/>
-                <Button Content="刷新设备" Command="{Binding RefreshDevicesCommand}" Style="{StaticResource ButtonPrimary}"/>
-            </StackPanel>
-        </DockPanel>
+        <Border Grid.Row="0" Style="{StaticResource PanelCard}" Padding="16,12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="有道词典笔工具箱" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="6" Padding="10,3" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="百宝盒" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" VerticalAlignment="Center" Margin="12,0,0,0"
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                </StackPanel>
+
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="主题" VerticalAlignment="Center" Margin="0,0,10,0"
+                               Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
+                    <Border Background="{DynamicResource ThirdlyRegionBrush}" CornerRadius="10" Padding="4"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="ThemeAutoButton" Content="跟随时间" Style="{StaticResource ThemeSegmentButton}"
+                                    Click="ThemeAutoButton_Click"/>
+                            <Button x:Name="ThemeLightButton" Content="浅色" Style="{StaticResource ThemeSegmentButton}"
+                                    Click="ThemeLightButton_Click"/>
+                            <Button x:Name="ThemeDarkButton" Content="深色" Style="{StaticResource ThemeSegmentButton}"
+                                    Click="ThemeDarkButton_Click"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <DockPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0" LastChildFill="True">
+                    <Button DockPanel.Dock="Right" Content="刷新设备" Command="{Binding RefreshDevicesCommand}"
+                            Style="{StaticResource ButtonPrimary}" Margin="8,0,0,0"/>
+                    <Button DockPanel.Dock="Right" Content="浏览" Command="{Binding BrowseAdbPathCommand}" Margin="8,0,0,0"/>
+                    <TextBox Text="{Binding AdbPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"
+                             hc:InfoElement.Placeholder="adb.exe 路径"/>
+                </DockPanel>
+            </Grid>
+        </Border>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -59,13 +196,14 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="{DynamicResource SecondaryRegionBrush}" CornerRadius="8" Padding="12" Margin="0,0,12,0">
-                <DockPanel>
-                    <TextBlock Text="设备列表" FontWeight="SemiBold" FontSize="14" DockPanel.Dock="Top" Margin="0,0,0,10"/>
+            <Border Grid.Column="0" Style="{StaticResource PanelCard}" Padding="14" Margin="0,0,12,0">
+                <DockPanel LastChildFill="True">
+                    <TextBlock Text="设备列表" FontWeight="SemiBold" FontSize="14" DockPanel.Dock="Top" Margin="4,0,0,12"/>
                     <ListBox ItemsSource="{Binding Devices}"
                              SelectedItem="{Binding SelectedDevice}"
                              BorderThickness="0"
-                             Background="Transparent">
+                             Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Margin="4">
@@ -95,13 +233,12 @@
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*" MinHeight="0"/>
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Grid.RowSpan="2"
                         Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}"
-                        Background="{DynamicResource SecondaryRegionBrush}" CornerRadius="8">
+                        Style="{StaticResource PanelCard}">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="请连接词典笔并刷新设备列表" FontSize="16" HorizontalAlignment="Center"
                                    Foreground="{DynamicResource SecondaryTextBrush}"/>
@@ -110,8 +247,8 @@
                     </StackPanel>
                 </Border>
 
-                <StackPanel Grid.Row="0" Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVis}}">
-                    <StackPanel Margin="0,0,0,12">
+                <StackPanel Grid.Row="0" Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
+                    <StackPanel Margin="0,0,0,8">
                         <TextBlock Text="{Binding SelectedDevice.DisplayName}" FontSize="18" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding SelectedDevice.DetailInfo}" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0"/>
                         <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12" Margin="0,2,0,0">
@@ -131,27 +268,30 @@
                         </DockPanel>
                     </Border>
 
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,0">
                         <StackPanel Orientation="Horizontal">
                             <Border Style="{StaticResource StatCard}">
                                 <StackPanel>
                                     <TextBlock Text="电量" Style="{StaticResource StatTitle}"/>
                                     <TextBlock Text="{Binding CurrentStatus.BatteryDisplay}" Style="{StaticResource StatValue}"/>
-                                    <ProgressBar Value="{Binding CurrentStatus.BatteryLevel, Mode=OneWay}" Maximum="100" Height="6" Margin="0,8,0,0"/>
+                                    <ProgressBar Style="{StaticResource StatProgressBar}"
+                                                 Value="{Binding CurrentStatus.BatteryLevel, Mode=OneWay}" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource StatCard}">
                                 <StackPanel>
                                     <TextBlock Text="CPU 使用率" Style="{StaticResource StatTitle}"/>
                                     <TextBlock Text="{Binding CurrentStatus.CpuDisplay}" Style="{StaticResource StatValue}"/>
-                                    <ProgressBar Value="{Binding CurrentStatus.CpuUsagePercent, Mode=OneWay}" Maximum="100" Height="6" Margin="0,8,0,0"/>
+                                    <ProgressBar Style="{StaticResource StatProgressBar}"
+                                                 Value="{Binding CurrentStatus.CpuUsagePercent, Mode=OneWay}" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource StatCard}">
                                 <StackPanel>
                                     <TextBlock Text="运行内存" Style="{StaticResource StatTitle}"/>
                                     <TextBlock Text="{Binding CurrentStatus.MemoryDisplay}" Style="{StaticResource StatValue}" FontSize="14"/>
-                                    <ProgressBar Value="{Binding CurrentStatus.MemoryUsagePercent, Mode=OneWay}" Maximum="100" Height="6" Margin="0,8,0,0"/>
+                                    <ProgressBar Style="{StaticResource StatProgressBar}"
+                                                 Value="{Binding CurrentStatus.MemoryUsagePercent, Mode=OneWay}" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
                             <Border Style="{StaticResource StatCard}">
@@ -170,39 +310,42 @@
                     </ScrollViewer>
                 </StackPanel>
 
-                <TabControl x:Name="MainTabControl" Grid.Row="2"
-                            SelectionChanged="MainTabControl_SelectionChanged">
+                <Border Grid.Row="1" Style="{StaticResource PanelCard}" Padding="14,10,14,14">
+                <TabControl x:Name="MainTabControl"
+                            SelectionChanged="MainTabControl_SelectionChanged"
+                            VerticalAlignment="Stretch">
                     
                     <TabItem Header="APP 列表">
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*" MinHeight="224"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="58"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="{Binding AppsSummaryText}" Margin="0,0,0,8"
+                            <TextBlock Grid.Row="0" Text="{Binding AppsSummaryText}" Margin="0,0,0,6"
                                        Foreground="{DynamicResource SecondaryTextBrush}"/>
 
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBox Width="200" Text="{Binding SearchAppText, UpdateSourceTrigger=PropertyChanged}"
-                                         hc:InfoElement.Placeholder="搜索名称/ID/分类" Margin="0,0,8,0"/>
-                                <Button Content="搜索" Click="SearchApps_Click" Margin="0,0,8,0"/>
-                                <Button Content="刷新列表" Command="{Binding RefreshAppsCommand}" Margin="0,0,8,0"/>
-                                <Button Content="刷新占用" Command="{Binding RefreshAppSizesCommand}" Margin="0,0,8,0"/>
-                                <Button Content="备份 AMR" Command="{Binding BackupSelectedAppCommand}" Margin="0,0,8,0"
+                            <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                                <TextBox Width="220" Text="{Binding SearchAppText, UpdateSourceTrigger=PropertyChanged}"
+                                         hc:InfoElement.Placeholder="搜索名称/ID/分类" Margin="0,0,8,8"/>
+                                <Button Content="搜索" Click="SearchApps_Click" Margin="0,0,8,8"/>
+                                <Button Content="刷新列表" Command="{Binding RefreshAppsCommand}" Margin="0,0,8,8"/>
+                                <Button Content="刷新占用" Command="{Binding RefreshAppSizesCommand}" Margin="0,0,8,8"/>
+                                <Button Content="备份 AMR" Command="{Binding BackupSelectedAppCommand}" Margin="0,0,8,8"
                                         Style="{StaticResource ButtonPrimary}"
                                         ToolTip="选中应用后，从设备安装目录反向打包为 .amr"/>
                                 <Button Content="一键安装 Loli" Command="{Binding InstallLoliAppCommand}"
-                                        Margin="0,0,8,0"
+                                        Margin="0,0,8,8"
                                         ToolTip="自动识别 RK/CVI 芯片，从 Gitee 下载最新 Loli 并安装"/>
-                                <CheckBox Content="显示系统应用" IsChecked="{Binding ShowSystemApps}" VerticalAlignment="Center"/>
-                            </StackPanel>
+                                <CheckBox Content="显示系统应用" IsChecked="{Binding ShowSystemApps}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                            </WrapPanel>
 
                             <DataGrid Grid.Row="2" x:Name="AppsDataGrid"
+                                      MinHeight="224"
                                       ItemsSource="{Binding InstalledApps}"
                                       SelectedItem="{Binding SelectedApp}"
                                       AutoGenerateColumns="False" IsReadOnly="True"
@@ -214,134 +357,75 @@
                                       Background="{DynamicResource RegionBrush}"
                                       BorderBrush="{DynamicResource BorderBrush}"
                                       RowBackground="{DynamicResource RegionBrush}">
-                                <DataGrid.Resources>
-                                    <Style TargetType="DataGridCell">
-                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                        <Setter Property="BorderThickness" Value="0"/>
-                                        <Setter Property="Padding" Value="8,4"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="DataGridCell">
-                                                    <Border Background="{TemplateBinding Background}"
-                                                            Padding="{TemplateBinding Padding}">
-                                                        <ContentPresenter VerticalAlignment="Center"/>
-                                                    </Border>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                    <Style TargetType="DataGridRow">
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </DataGrid.Resources>
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="名称" Binding="{Binding Name, Mode=OneWay}" Width="160" IsReadOnly="True">
+                                    <DataGridTextColumn Header="名称" Binding="{Binding Name, Mode=OneWay}" Width="180" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="版本" Binding="{Binding Version, Mode=OneWay}" Width="72" IsReadOnly="True">
+                                    <DataGridTextColumn Header="版本" Binding="{Binding Version, Mode=OneWay}" Width="88" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="占用大小" Binding="{Binding SizeDisplay, Mode=OneWay}" SortMemberPath="SizeKb" Width="90" IsReadOnly="True">
+                                    <DataGridTextColumn Header="占用大小" Binding="{Binding SizeDisplay, Mode=OneWay}" SortMemberPath="SizeKb" Width="100" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="类型" Binding="{Binding AppType, Mode=OneWay}" Width="64" IsReadOnly="True">
+                                    <DataGridTextColumn Header="类型" Binding="{Binding AppType, Mode=OneWay}" Width="80" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="AppId" Binding="{Binding AppId, Mode=OneWay}" Width="150" IsReadOnly="True">
+                                    <DataGridTextColumn Header="AppId" Binding="{Binding AppId, Mode=OneWay}" Width="170" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTextColumn Header="分类" Binding="{Binding Category, Mode=OneWay}" Width="110" IsReadOnly="True">
+                                    <DataGridTextColumn Header="分类" Binding="{Binding Category, Mode=OneWay}" Width="120" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
-                                    <DataGridTemplateColumn Header="卸载" Width="64" IsReadOnly="True" SortMemberPath="UninstallDisplay">
+                                    <DataGridTemplateColumn Header="卸载" Width="72" IsReadOnly="True" SortMemberPath="UninstallDisplay">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding UninstallDisplay, Mode=OneWay}"
-                                                           Foreground="{DynamicResource PrimaryTextBrush}"
-                                                           VerticalAlignment="Center"/>
+                                                           Style="{StaticResource DataGridCellText}"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
 
-                            <Border Grid.Row="3" Margin="0,8,0,0" Padding="10,8"
-                                    Background="{DynamicResource SecondaryRegionBrush}" CornerRadius="6">
-                                <TextBlock Text="{Binding SelectedAppDetail}" TextWrapping="Wrap" FontSize="12"
-                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            <Border Grid.Row="3" Style="{StaticResource DetailPanel}" MaxHeight="48" Margin="0,6,0,0">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding SelectedAppDetail}" TextWrapping="Wrap" FontSize="14"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </ScrollViewer>
                             </Border>
 
-                            <Grid Grid.Row="4" Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBox Width="120" Text="{Binding StartPage, UpdateSourceTrigger=PropertyChanged}"
-                                             hc:InfoElement.Placeholder="启动页面" Margin="0,0,8,0"/>
-                                    <Button Content="启动选中" Command="{Binding StartAppCommand}"/>
-                                    <Button Content="备份 AMR" Command="{Binding BackupSelectedAppCommand}" Margin="8,0,0,0"
-                                            ToolTip="从设备安装目录反向打包为 .amr，可拖回工具箱安装"/>
-                                    <Button Content="卸载选中" Command="{Binding UninstallAppCommand}" Margin="8,0,0,0"
-                                            ToolTip="普通应用可备份后卸载；受保护系统应用将自动备份 AMR 并提示找回方式"/>
-                                </StackPanel>
-                                <TextBlock Grid.Column="1" Text="点击表头「占用大小」可排序" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"/>
-                            </Grid>
+                            <WrapPanel Grid.Row="4" Margin="0,6,0,0">
+                                <TextBox Width="120" Text="{Binding StartPage, UpdateSourceTrigger=PropertyChanged}"
+                                         hc:InfoElement.Placeholder="启动页面" Margin="0,0,8,8"/>
+                                <Button Content="启动选中" Command="{Binding StartAppCommand}" Margin="0,0,8,8"/>
+                                <Button Content="备份 AMR" Command="{Binding BackupSelectedAppCommand}" Margin="0,0,8,8"
+                                        ToolTip="从设备安装目录反向打包为 .amr，可拖回工具箱安装"/>
+                                <Button Content="卸载选中" Command="{Binding UninstallAppCommand}" Margin="0,0,8,8"
+                                        ToolTip="普通应用可备份后卸载；受保护系统应用将自动备份 AMR 并提示找回方式"/>
+                                <TextBlock Text="点击表头「占用大小」可排序" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,0,8,8"/>
+                            </WrapPanel>
 
-                            <Border Grid.Row="5" x:Name="DropZone" Margin="0,8,0,0"
-                                    BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="2"
-                                    CornerRadius="8" Background="{DynamicResource ThirdlyRegionBrush}"
-                                    Height="72" AllowDrop="True"
+                            <Border Grid.Row="5" x:Name="DropZone" Style="{StaticResource DropZonePanel}" Margin="0,6,0,0"
+                                    AllowDrop="True"
                                     Drop="DropZone_Drop" DragEnter="DropZone_DragEnter"
                                     DragOver="DropZone_DragOver" DragLeave="DropZone_DragLeave"
                                     GiveFeedback="DropZone_GiveFeedback">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock Text="将 .amr 小程序包拖放到此处安装" FontSize="14" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="将 .amr 小程序包拖放到此处安装" FontSize="14" HorizontalAlignment="Center"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"/>
                                     <TextBlock Text="拖入后会弹出确认对话框，不会自动安装" FontSize="11"
                                                Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                                 </StackPanel>
@@ -350,90 +434,98 @@
                     </TabItem>
 
                     <TabItem Header="miniapp_cli">
-                        <Grid Margin="0,8,0,0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Margin="0,4,0,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="260"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox ItemsSource="{Binding AvailableCommands}"
+                                              SelectedItem="{Binding SelectedCommand}"
+                                              DisplayMemberPath="DisplayText"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
+                                        <Button Content="填入选中应用" Command="{Binding FillSelectedAppToCliCommand}"
+                                                Margin="0,0,8,0" ToolTip="将 APP 列表中选中的应用 AppId 填入参数"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="执行" Command="{Binding ExecuteCommandCommand}"
+                                            Style="{StaticResource ButtonPrimary}"/>
+                                </Grid>
 
-                            <Grid Grid.Row="0" Margin="0,0,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="260"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <ComboBox ItemsSource="{Binding AvailableCommands}"
-                                          SelectedItem="{Binding SelectedCommand}"
-                                          DisplayMemberPath="DisplayText"/>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
-                                    <Button Content="填入选中应用" Command="{Binding FillSelectedAppToCliCommand}"
-                                            Margin="0,0,8,0" ToolTip="将 APP 列表中选中的应用 AppId 填入参数"/>
-                                </StackPanel>
-                                <Button Grid.Column="2" Content="执行" Command="{Binding ExecuteCommandCommand}"
-                                        Style="{StaticResource ButtonPrimary}"/>
-                            </Grid>
+                                <Border Style="{StaticResource DetailPanel}" Margin="0,0,0,8"
+                                        Visibility="{Binding CliShowHelpPanel, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="命令说明" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                        <TextBlock Text="{Binding CliHelpText}" TextWrapping="Wrap" FontSize="14"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" LineHeight="20"/>
+                                    </StackPanel>
+                                </Border>
 
-                            <Border Grid.Row="1" Padding="12,10" CornerRadius="6" Margin="0,0,0,8"
-                                    Background="{DynamicResource SecondaryRegionBrush}">
-                                <StackPanel>
-                                    <TextBlock Text="命令说明" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <TextBlock Text="{Binding CliHelpText}" TextWrapping="Wrap" FontSize="12"
-                                               Foreground="{DynamicResource SecondaryTextBrush}" LineHeight="20"/>
-                                </StackPanel>
-                            </Border>
+                                <Border Padding="12,10" CornerRadius="10" Margin="0,0,0,8"
+                                        Background="{DynamicResource ThirdlyRegionBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="即将执行" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding CliPreviewCommand}" FontFamily="Consolas" FontSize="14"
+                                                   TextWrapping="Wrap"/>
 
-                            <Border Grid.Row="2" Padding="12,10" CornerRadius="6" Margin="0,0,0,8"
-                                    Background="{DynamicResource ThirdlyRegionBrush}">
-                                <StackPanel>
-                                    <TextBlock Text="即将执行" FontSize="12" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding CliPreviewCommand}" FontFamily="Consolas" FontSize="13"
-                                               TextWrapping="Wrap"/>
+                                        <StackPanel Margin="0,10,0,0"
+                                                    Visibility="{Binding CliHasParams, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel Visibility="{Binding CliSingleParamLayout, Converter={StaticResource BoolToVis}}">
+                                                <TextBlock Text="{Binding CliParam1Label}" FontWeight="SemiBold" FontSize="12"/>
+                                                <TextBox Text="{Binding Param1, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,4,0,0"
+                                                         hc:InfoElement.Placeholder="{Binding CliParam1Placeholder}"/>
+                                                <TextBlock Text="{Binding CliParam1Hint}" FontSize="11"
+                                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                                           Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
 
-                                    <Grid Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel Visibility="{Binding CliShowParam1, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="{Binding CliParam1Label}" FontWeight="SemiBold" FontSize="12"/>
-                                            <TextBox Text="{Binding Param1, UpdateSourceTrigger=PropertyChanged}"
-                                                     Margin="0,4,8,0"
-                                                     hc:InfoElement.Placeholder="{Binding CliParam1Placeholder}"/>
-                                            <TextBlock Text="{Binding CliParam1Hint}" FontSize="11"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,8,0" TextWrapping="Wrap"/>
+                                            <Grid Visibility="{Binding CliDualParamLayout, Converter={StaticResource BoolToVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="12"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding CliParam1Label}" FontWeight="SemiBold" FontSize="12"/>
+                                                    <TextBox Text="{Binding Param1, UpdateSourceTrigger=PropertyChanged}"
+                                                             Margin="0,4,0,0"
+                                                             hc:InfoElement.Placeholder="{Binding CliParam1Placeholder}"/>
+                                                    <TextBlock Text="{Binding CliParam1Hint}" FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="{Binding CliParam2Label}" FontWeight="SemiBold" FontSize="12"/>
+                                                    <TextBox Text="{Binding Param2, UpdateSourceTrigger=PropertyChanged}"
+                                                             Margin="0,4,0,0"
+                                                             hc:InfoElement.Placeholder="{Binding CliParam2Placeholder}"/>
+                                                    <TextBlock Text="{Binding CliParam2Hint}" FontSize="11"
+                                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                                               Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Grid>
                                         </StackPanel>
+                                    </StackPanel>
+                                </Border>
 
-                                        <StackPanel Grid.Column="1" Visibility="{Binding CliShowParam2, Converter={StaticResource BoolToVis}}">
-                                            <TextBlock Text="{Binding CliParam2Label}" FontWeight="SemiBold" FontSize="12"/>
-                                            <TextBox Text="{Binding Param2, UpdateSourceTrigger=PropertyChanged}"
-                                                     Margin="0,4,0,0"
-                                                     hc:InfoElement.Placeholder="{Binding CliParam2Placeholder}"/>
-                                            <TextBlock Text="{Binding CliParam2Hint}" FontSize="11"
-                                                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
-
-                            <Grid Grid.Row="3">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
                                 <DockPanel Margin="0,0,0,6">
                                     <Button DockPanel.Dock="Right" Content="清空输出" Command="{Binding ClearCommandOutputCommand}"/>
                                     <TextBlock Text="输出日志（含解析结果 + 原始内容）" VerticalAlignment="Center"
                                                Foreground="{DynamicResource SecondaryTextBrush}"/>
                                 </DockPanel>
-                                <TextBox Grid.Row="1" Text="{Binding CommandOutput, Mode=OneWay}"
+                                <TextBox Text="{Binding CommandOutput, Mode=OneWay}"
+                                         Style="{StaticResource OutputTextBox}"
                                          IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                                         FontFamily="Consolas" FontSize="12"
+                                         FontFamily="Consolas" MinHeight="280" Margin="0,0,0,8"
                                          hc:InfoElement.Placeholder="执行命令后，这里会显示易读的解析结果和原始输出..."/>
-                            </Grid>
-                        </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
 
                     <TabItem Header="快捷工具">
@@ -490,11 +582,11 @@
                     </TabItem>
 
                     <TabItem Header="任务管理器">
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*" MinHeight="0"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
@@ -527,28 +619,6 @@
                                       Background="{DynamicResource RegionBrush}"
                                       BorderBrush="{DynamicResource BorderBrush}"
                                       RowBackground="{DynamicResource RegionBrush}">
-                                <DataGrid.Resources>
-                                    <Style TargetType="DataGridCell">
-                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                        <Setter Property="BorderThickness" Value="0"/>
-                                        <Setter Property="Padding" Value="8,4"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                    <Style TargetType="DataGridRow">
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </DataGrid.Resources>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="PID" Binding="{Binding Pid, Mode=OneWay}" Width="56"/>
                                     <DataGridTextColumn Header="用户" Binding="{Binding User, Mode=OneWay}" Width="64"/>
@@ -561,36 +631,33 @@
                                 </DataGrid.Columns>
                             </DataGrid>
 
-                            <StackPanel Grid.Row="3" Margin="0,8,0,0">
-                                <Border Padding="10,8" Margin="0,0,0,8"
-                                        Background="{DynamicResource SecondaryRegionBrush}" CornerRadius="6">
-                                    <TextBlock Text="{Binding SelectedProcessDetail}" TextWrapping="Wrap" FontSize="12"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            <StackPanel Grid.Row="3" Margin="0,6,0,0">
+                                <Border Style="{StaticResource DetailPanel}" Margin="0,0,0,6">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <TextBlock Text="{Binding SelectedProcessDetail}" TextWrapping="Wrap" FontSize="14"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </ScrollViewer>
                                 </Border>
-                                <DockPanel>
-                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ProcessControlHint}"
-                                               VerticalAlignment="Center" FontSize="11"
-                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="终结进程" Command="{Binding KillSelectedProcessCommand}"
-                                                ToolTip="发送 SIGTERM，必要时自动 SIGKILL"/>
-                                        <Button Content="重启进程" Command="{Binding RestartSelectedProcessCommand}"
-                                                Margin="8,0,0,0"
-                                                ToolTip="读取 /proc/PID/cmdline 并以相同命令重新启动"/>
-                                    </StackPanel>
-                                </DockPanel>
+                                <WrapPanel>
+                                    <Button Content="终结进程" Command="{Binding KillSelectedProcessCommand}" Margin="0,0,8,8"
+                                            ToolTip="发送 SIGTERM，必要时自动 SIGKILL"/>
+                                    <Button Content="重启进程" Command="{Binding RestartSelectedProcessCommand}" Margin="0,0,8,8"
+                                            ToolTip="读取 /proc/PID/cmdline 并以相同命令重新启动"/>
+                                    <TextBlock Text="{Binding ProcessControlHint}" VerticalAlignment="Center" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,8,8"/>
+                                </WrapPanel>
                             </StackPanel>
                         </Grid>
                     </TabItem>
 
                     <TabItem Header="文件管理器">
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*" MinHeight="0"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="72"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="{Binding RemoteFileSummary}" Margin="0,0,0,8"
@@ -601,7 +668,7 @@
                                 <Button DockPanel.Dock="Right" Content="前往" Command="{Binding NavigateRemotePathCommand}" Margin="8,0,0,0"/>
                                 <Button DockPanel.Dock="Left" Content="返回上一层" Command="{Binding GoUpRemoteDirectoryCommand}" Margin="0,0,8,0"/>
                                 <TextBox Text="{Binding CurrentRemotePath, UpdateSourceTrigger=PropertyChanged}"
-                                         FontFamily="Consolas" FontSize="13"
+                                         FontFamily="Consolas"
                                          hc:InfoElement.Placeholder="设备路径，如 / 或 /userdisk"
                                          KeyDown="RemotePathInput_KeyDown"/>
                             </DockPanel>
@@ -621,28 +688,6 @@
                                       Background="{DynamicResource RegionBrush}"
                                       BorderBrush="{DynamicResource BorderBrush}"
                                       RowBackground="{DynamicResource RegionBrush}">
-                                <DataGrid.Resources>
-                                    <Style TargetType="DataGridCell">
-                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                        <Setter Property="BorderThickness" Value="0"/>
-                                        <Setter Property="Padding" Value="8,4"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                    <Style TargetType="DataGridRow">
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </DataGrid.Resources>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="名称" Binding="{Binding Name, Mode=OneWay}" Width="220"/>
                                     <DataGridTextColumn Header="类型" Binding="{Binding TypeDisplay, Mode=OneWay}" Width="72"/>
@@ -653,28 +698,26 @@
                                 </DataGrid.Columns>
                             </DataGrid>
 
-                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                                <Button Content="进入" Command="{Binding EnterRemoteDirectoryCommand}"
+                            <WrapPanel Grid.Row="3" Margin="0,6,0,0">
+                                <Button Content="进入" Command="{Binding EnterRemoteDirectoryCommand}" Margin="0,0,8,8"
                                         ToolTip="进入选中的文件夹或链接目录"/>
-                                <Button Content="新建文件夹" Command="{Binding CreateRemoteFolderCommand}" Margin="8,0,0,0"/>
-                                <Button Content="重命名" Command="{Binding RenameRemoteFileCommand}" Margin="8,0,0,0"/>
-                                <Button Content="删除" Command="{Binding DeleteRemoteFileCommand}" Margin="8,0,0,0"/>
-                                <Button Content="上传文件" Command="{Binding BrowseUploadRemoteFilesCommand}" Margin="8,0,0,0"/>
-                                <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
-                                           FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}">
-                                    <Run Text="Ctrl+点击 / Shift+点击多选  ·  Ctrl+A 全选  ·  双击文件夹进入"/>
-                                </TextBlock>
-                            </StackPanel>
+                                <Button Content="新建文件夹" Command="{Binding CreateRemoteFolderCommand}" Margin="0,0,8,8"/>
+                                <Button Content="重命名" Command="{Binding RenameRemoteFileCommand}" Margin="0,0,8,8"/>
+                                <Button Content="删除" Command="{Binding DeleteRemoteFileCommand}" Margin="0,0,8,8"/>
+                                <Button Content="上传文件" Command="{Binding BrowseUploadRemoteFilesCommand}" Margin="0,0,8,8"/>
+                                <TextBlock VerticalAlignment="Center" Margin="0,0,8,8"
+                                           FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}"
+                                           Text="Ctrl+点击 / Shift+点击多选  ·  Ctrl+A 全选  ·  双击文件夹进入"/>
+                            </WrapPanel>
 
-                            <Border Grid.Row="4" x:Name="FileManagerDropZone" Margin="0,8,0,0"
-                                    BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="2"
-                                    CornerRadius="8" Background="{DynamicResource ThirdlyRegionBrush}"
-                                    Height="72" AllowDrop="True"
+                            <Border Grid.Row="4" x:Name="FileManagerDropZone" Style="{StaticResource DropZonePanel}" Margin="0,6,0,0"
+                                    AllowDrop="True"
                                     Drop="FileManagerDropZone_Drop" DragEnter="FileManagerDropZone_DragEnter"
                                     DragOver="FileManagerDropZone_DragOver" DragLeave="FileManagerDropZone_DragLeave"
                                     GiveFeedback="FileManagerDropZone_GiveFeedback">
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock Text="将文件拖放到此处上传到当前目录" FontSize="14" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="将文件拖放到此处上传到当前目录" FontSize="14" HorizontalAlignment="Center"
+                                               Foreground="{DynamicResource PrimaryTextBrush}"/>
                                     <TextBlock Text="{Binding CurrentRemotePath, StringFormat=当前目录: {0}}" FontSize="11"
                                                Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                                 </StackPanel>
@@ -682,13 +725,44 @@
                         </Grid>
                     </TabItem>
 
+                    <TabItem Header="ADB破解">
+                        <Grid Margin="0,4,0,0">
+                            <Border Style="{StaticResource PanelCard}" Padding="28" MaxWidth="640" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <StackPanel>
+                                    <TextBlock Text="ADB 破解" FontSize="22" FontWeight="Bold" Margin="0,0,0,12"/>
+                                    <TextBlock TextWrapping="Wrap" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,16">
+                                        <Run Text="词典笔若未解锁 ADB，需通过 PenNewInject 付费解锁后才能使用本工具箱的完整功能。"/>
+                                    </TextBlock>
+                                    <Border Padding="12,10" CornerRadius="8" Margin="0,0,0,20"
+                                            Background="{DynamicResource ThirdlyRegionBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                            Visibility="{Binding NeedsAdbUnlock, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="当前设备尚未解锁 ADB，请点击下方按钮开始解锁流程。"
+                                                   TextWrapping="Wrap" FontSize="14"/>
+                                    </Border>
+                                    <Border Padding="12,10" CornerRadius="8" Margin="0,0,0,20"
+                                            Background="{DynamicResource ThirdlyRegionBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                            Visibility="{Binding NeedsAdbUnlock, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                                        <TextBlock Text="当前设备 ADB 已可用；如需重新运行解锁工具，也可点击下方按钮。"
+                                                   TextWrapping="Wrap" FontSize="14"/>
+                                    </Border>
+                                    <Button Content="付费解锁" Command="{Binding OpenAdbUnlockCommand}"
+                                            Style="{StaticResource PrimaryActionButton}"
+                                            HorizontalAlignment="Left"
+                                            ToolTip="打开 PenNewInject 解锁向导（与顶部提示相同）"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </TabItem>
+
                     <TabItem Header="ADB 终端">
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*" MinHeight="0"/>
                             </Grid.RowDefinitions>
 
                             <WrapPanel Grid.Row="0" Margin="0,0,0,8">
@@ -702,7 +776,7 @@
                             </WrapPanel>
 
                             <TextBlock Grid.Row="1" Text="{Binding AdbCommandPreview}" Margin="0,0,0,8"
-                                       FontFamily="Consolas" FontSize="12"
+                                       FontFamily="Consolas" FontSize="14"
                                        Foreground="{DynamicResource SecondaryTextBrush}"/>
 
                             <Grid Grid.Row="2" Margin="0,0,0,8">
@@ -711,7 +785,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0" Text="{Binding AdbTerminalInput, UpdateSourceTrigger=PropertyChanged}"
-                                         FontFamily="Consolas" FontSize="13" Margin="0,0,8,0"
+                                         FontFamily="Consolas" Margin="0,0,8,0"
                                          hc:InfoElement.Placeholder="输入 adb 子命令，如 shell ls /userdisk、pull /userdisk/xxx .、shell cat /etc/os-release"
                                          KeyDown="AdbTerminalInput_KeyDown"/>
                                 <Button Grid.Column="1" Content="执行" Command="{Binding ExecuteAdbCommandCommand}"
@@ -719,19 +793,20 @@
                             </Grid>
 
                             <TextBox Grid.Row="3" Text="{Binding AdbTerminalOutput, Mode=OneWay}"
+                                     Style="{StaticResource OutputTextBox}"
                                      IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                                     FontFamily="Consolas" FontSize="12"
+                                     FontFamily="Consolas"
                                      hc:InfoElement.Placeholder="ADB 命令输出将显示在这里..."/>
                         </Grid>
                     </TabItem>
 
                     <TabItem Header="刷机">
-                        <Grid Margin="0,8,0,0">
+                        <Grid Margin="0,4,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*" MinHeight="0"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -772,61 +847,26 @@
                                       Background="{DynamicResource RegionBrush}"
                                       BorderBrush="{DynamicResource BorderBrush}"
                                       RowBackground="{DynamicResource RegionBrush}">
-                                <DataGrid.Resources>
-                                    <Style TargetType="DataGridCell">
-                                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                                        <Setter Property="BorderThickness" Value="0"/>
-                                        <Setter Property="Padding" Value="8,4"/>
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Setter Property="Background" Value="Transparent"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                    <Style TargetType="DataGridRow">
-                                        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </DataGrid.Resources>
                                 <DataGrid.Columns>
-                                    <DataGridCheckBoxColumn Header="备份" Binding="{Binding IsSelectedForBatch, UpdateSourceTrigger=PropertyChanged}" Width="52"/>
+                                    <DataGridCheckBoxColumn Header="备份" Binding="{Binding IsSelectedForBatch, UpdateSourceTrigger=PropertyChanged}" Width="64"/>
                                     <DataGridTextColumn Header="分区名" Binding="{Binding Name, Mode=OneWay}" Width="120" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="大小" Binding="{Binding SizeDisplay, Mode=OneWay}" SortMemberPath="SizeBytes" Width="96" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="A/B 槽" Binding="{Binding SlotDisplay, Mode=OneWay}" SortMemberPath="AbSlotLetter" Width="72" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="挂载" Binding="{Binding MountDisplay, Mode=OneWay}" SortMemberPath="IsMounted" Width="140" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}">
                                                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                                 <Setter Property="ToolTip" Value="{Binding MountDisplay}"/>
                                             </Style>
@@ -834,25 +874,17 @@
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="底层设备" Binding="{Binding BlockDeviceName, Mode=OneWay}" Width="96" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="块设备" Binding="{Binding BlockDevicePath, Mode=OneWay}" Width="120" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="目标路径 (by-name)" Binding="{Binding ByNamePath, Mode=OneWay}" Width="*" MinWidth="160" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}">
                                                 <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
                                                 <Setter Property="ToolTip" Value="{Binding ByNamePath}"/>
                                             </Style>
@@ -860,39 +892,35 @@
                                     </DataGridTextColumn>
                                     <DataGridTextColumn Header="风险" Binding="{Binding RiskDisplay, Mode=OneWay}" Width="64" IsReadOnly="True">
                                         <DataGridTextColumn.ElementStyle>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
-                                                <Setter Property="VerticalAlignment" Value="Center"/>
-                                            </Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}"/>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
 
-                            <Border Grid.Row="4" Margin="0,8,0,0" Padding="10,8"
-                                    Background="{DynamicResource SecondaryRegionBrush}" CornerRadius="6"
-                                    MinHeight="72" MaxHeight="140">
+                            <Border Grid.Row="4" Padding="12,10" CornerRadius="6" Margin="0,6,0,0"
+                                    Background="{DynamicResource SecondaryRegionBrush}" MaxHeight="88">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <TextBlock Text="{Binding SelectedPartitionDetail, Mode=OneWay}"
-                                               TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
+                                               TextWrapping="Wrap" FontFamily="Consolas" FontSize="14"
                                                Foreground="{DynamicResource PrimaryTextBrush}"/>
                                 </ScrollViewer>
                             </Border>
 
-                            <WrapPanel Grid.Row="5" Margin="0,8,0,0">
-                                <Button Content="刷新分区" Command="{Binding RefreshPartitionsCommand}"/>
-                                <Button Content="提取到电脑" Command="{Binding ExtractPartitionCommand}" Margin="8,0,0,0"
+                            <WrapPanel Grid.Row="5" Margin="0,6,0,0">
+                                <Button Content="刷新分区" Command="{Binding RefreshPartitionsCommand}" Margin="0,0,8,8"/>
+                                <Button Content="提取到电脑" Command="{Binding ExtractPartitionCommand}" Margin="0,0,8,8"
                                         ToolTip="默认保存到 文档\YoudaoPenToolbox\PartitionBackups\{序列号}\"/>
-                                <Button Content="批量提取选中" Command="{Binding BatchExtractPartitionsCommand}" Margin="8,0,0,0"/>
-                                <Button Content="一键备份常用套装" Command="{Binding BackupPresetPartitionsCommand}" Margin="8,0,0,0"
+                                <Button Content="批量提取选中" Command="{Binding BatchExtractPartitionsCommand}" Margin="0,0,8,8"/>
+                                <Button Content="一键备份常用套装" Command="{Binding BackupPresetPartitionsCommand}" Margin="0,0,8,8"
                                         ToolTip="boot + system + trust + userdata（优先当前 A/B 槽）"/>
-                                <Button Content="全选/取消" Command="{Binding ToggleSelectAllPartitionsCommand}" Margin="8,0,0,0"/>
-                                <Button Content="挂载分区" Command="{Binding MountSelectedPartitionCommand}" Margin="8,0,0,0"
+                                <Button Content="全选/取消" Command="{Binding ToggleSelectAllPartitionsCommand}" Margin="0,0,8,8"/>
+                                <Button Content="挂载分区" Command="{Binding MountSelectedPartitionCommand}" Margin="0,0,8,8"
                                         ToolTip="将未挂载的分区挂载到指定目录（默认只读挂载关键分区）"/>
-                                <Button Content="卸载分区" Command="{Binding UnmountSelectedPartitionCommand}" Margin="8,0,0,0"/>
-                                <Button Content="从电脑刷入" Command="{Binding FlashPartitionCommand}" Margin="8,0,0,0"
+                                <Button Content="卸载分区" Command="{Binding UnmountSelectedPartitionCommand}" Margin="0,0,8,8"/>
+                                <Button Content="从电脑刷入" Command="{Binding FlashPartitionCommand}" Margin="0,0,8,8"
                                         ToolTip="dd 写入分区，直接从电脑流式刷入"/>
-                                <Button Content="取消传输" Command="{Binding CancelPartitionTransferCommand}" Margin="8,0,0,0"/>
+                                <Button Content="取消传输" Command="{Binding CancelPartitionTransferCommand}" Margin="0,0,8,8"/>
                             </WrapPanel>
 
                             <StackPanel Grid.Row="6" Margin="0,8,0,0"
@@ -928,15 +956,17 @@
                         </ScrollViewer>
                     </TabItem>
                 </TabControl>
+                </Border>
             </Grid>
         </Grid>
 
-        <Border Grid.Row="2" Margin="0,12,0,0" Padding="8,6"
-                Background="{DynamicResource SecondaryRegionBrush}" CornerRadius="4">
+        <Border Grid.Row="2" Margin="0,14,0,0" Padding="12,8"
+                Style="{StaticResource PanelCard}">
             <DockPanel>
                 <ProgressBar DockPanel.Dock="Right" IsIndeterminate="True" Width="80" Height="4"
                              Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
-                <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center"
+                           Foreground="{DynamicResource PrimaryTextBrush}"/>
             </DockPanel>
         </Border>
     </Grid>

@@ -9,5 +9,6 @@ error.log
 adb_reverse_analysis/
 *.code-workspace
 scripts/
+ThemeSwitchTest.exe
 Thumbs.db
 Desktop.ini
