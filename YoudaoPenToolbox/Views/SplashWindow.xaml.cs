@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using YoudaoPenToolbox.Helpers;
 
 namespace YoudaoPenToolbox.Views
 {
@@ -38,6 +39,7 @@ namespace YoudaoPenToolbox.Views
 
         private void SplashWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            WindowLayoutHelper.ApplyMainWindowBounds(this);
             PlayEntranceAnimation();
             StartAmbientBreathing();
             StartSpinnerRotation();

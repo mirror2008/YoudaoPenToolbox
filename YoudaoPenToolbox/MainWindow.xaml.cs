@@ -72,6 +72,8 @@ namespace YoudaoPenToolbox
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            WindowLayoutHelper.ApplyMainWindowBounds(this);
+
             if (!_skipEntranceAnimation)
             {
                 UiAnimationHelper.PlayWindowEntrance(RootContent);
