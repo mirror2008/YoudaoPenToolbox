@@ -11,8 +11,6 @@
 
 前往 [Releases](https://github.com/mirror2008/YoudaoPenToolbox/releases) 下载最新正式版。
 
-**用户手册（PDF）：** [YoudaoPenToolbox_用户手册_v1.0.1.pdf](docs/YoudaoPenToolbox_用户手册_v1.0.1.pdf) — 涵盖全部功能说明与常见问题。
-
 解压后运行 `YoudaoPenToolbox.exe`。  
 程序会自动检查更新，新版本发布后将提示下载并重启。
 
