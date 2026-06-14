@@ -15,6 +15,7 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <LangVersion>latest</LangVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -86,6 +87,7 @@
     <Compile Include="Helpers\DialogAnimationHelper.cs" />
     <Compile Include="Helpers\ThemeResourceHelper.cs" />
     <Compile Include="Helpers\UiAnimationHelper.cs" />
+    <Compile Include="Helpers\WindowLayoutHelper.cs" />
     <Compile Include="Helpers\ViewModelBase.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Converters\BoolToYesNoConverter.cs" />

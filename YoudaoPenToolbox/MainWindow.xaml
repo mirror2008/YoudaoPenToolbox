@@ -4,11 +4,10 @@
         xmlns:hc="https://handyorg.github.io/handycontrol"
         xmlns:conv="clr-namespace:YoudaoPenToolbox.Converters"
         Title="有道词典笔工具箱"
-        Width="1440" Height="940"
-        MinWidth="1440" MaxWidth="1440"
-        MinHeight="940" MaxHeight="940"
         ResizeMode="CanMinimize"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         FontFamily="Segoe UI, Microsoft YaHei UI"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
@@ -137,6 +136,8 @@
         </Style>
     </Window.Resources>
 
+    <Viewbox x:Name="RootViewbox" Stretch="Uniform" StretchDirection="DownOnly">
+        <Grid Width="1440" Height="940">
     <Grid x:Name="RootContent" Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -155,19 +156,19 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="有道词典笔工具箱" FontSize="24" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="6" Padding="10,3" Margin="14,0,0,0" VerticalAlignment="Center">
+                <WrapPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="有道词典笔工具箱" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,14,4"/>
+                    <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="6" Padding="10,3" Margin="0,0,14,4" VerticalAlignment="Center">
                         <TextBlock Text="百宝盒" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
                     </Border>
-                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" VerticalAlignment="Center" Margin="12,0,0,0"
+                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" VerticalAlignment="Center" Margin="0,0,14,4"
                                Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
-                </StackPanel>
+                </WrapPanel>
 
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <TextBlock Text="主题" VerticalAlignment="Center" Margin="0,0,10,0"
+                <WrapPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="主题" VerticalAlignment="Center" Margin="0,0,10,4"
                                Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
-                    <Border Background="{DynamicResource ThirdlyRegionBrush}" CornerRadius="10" Padding="4"
+                    <Border Background="{DynamicResource ThirdlyRegionBrush}" CornerRadius="10" Padding="4" Margin="0,0,0,4"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="ThemeAutoButton" Content="跟随时间" Style="{StaticResource ThemeSegmentButton}"
@@ -178,13 +179,14 @@
                                     Click="ThemeDarkButton_Click"/>
                         </StackPanel>
                     </Border>
-                </StackPanel>
+                </WrapPanel>
 
                 <DockPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0" LastChildFill="True">
                     <Button DockPanel.Dock="Right" Content="刷新设备" Command="{Binding RefreshDevicesCommand}"
-                            Style="{StaticResource ButtonPrimary}" Margin="8,0,0,0"/>
-                    <Button DockPanel.Dock="Right" Content="浏览" Command="{Binding BrowseAdbPathCommand}" Margin="8,0,0,0"/>
-                    <TextBox Text="{Binding AdbPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"
+                            Style="{StaticResource ButtonPrimary}" Margin="8,0,0,0" MinWidth="88"/>
+                    <Button DockPanel.Dock="Right" Content="浏览" Command="{Binding BrowseAdbPathCommand}" Margin="8,0,0,0" MinWidth="72"/>
+                    <TextBox Text="{Binding AdbPath, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" MinWidth="0"
+                             ToolTip="{Binding AdbPath}"
                              hc:InfoElement.Placeholder="adb.exe 路径"/>
                 </DockPanel>
             </Grid>
@@ -192,8 +194,8 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="260"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="220" MinWidth="200"/>
+                <ColumnDefinition Width="*" MinWidth="0"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Style="{StaticResource PanelCard}" Padding="14" Margin="0,0,12,0">
@@ -970,4 +972,6 @@
             </DockPanel>
         </Border>
     </Grid>
+        </Grid>
+    </Viewbox>
 </Window>
