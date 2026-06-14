@@ -218,8 +218,7 @@ def build_story(styles):
         "第十四章  常见问题与故障排除",
         "附录 A  miniapp_cli 命令速查表",
         "附录 B  受保护系统应用说明",
-        "附录 C  重要路径与文件位置",
-        "附录 D  免责声明与安全须知",
+        "附录 C  免责声明与安全须知",
     ]
     for item in toc_items:
         story.append(p(item, s["toc"]))
@@ -245,7 +244,7 @@ def build_story(styles):
         "文件管理器：上传、下载、重命名、删除、文本/十六进制预览",
         "ADB 终端：执行任意 ADB 子命令，支持交互 Shell",
         "刷机分区：提取、批量备份、挂载、流式刷写块分区",
-        "ADB 解锁：引导 PenNewInject 付费解锁流程",
+        "ADB 解锁：引导 PenNewInject 解锁流程（PenNewInject 与本工具箱同为 MIRROR 开发）",
     ]
     for c in caps:
         story.append(bullet(c, s))
@@ -552,8 +551,9 @@ def build_story(styles):
     story.append(p("6.1  ADB 持久化", s["h2"]))
     story.append(
         p(
-            "词典笔重启后 ADB 授权可能失效。ADB 持久化通过在设备开机脚本中写入钩子，"
-            "自动创建授权标记文件 /tmp/.adb_auth_verified，使重启后无需在 PC 上重复 adb shell auth。",
+            "词典笔重启后，ADB 连接有时需要重新输入密码才能继续使用。"
+            "ADB 持久化功能的作用是：<strong>尽量保持 ADB 在设备重启后仍可正常使用，无需反复输入密码</strong>。"
+            "本功能仅提供便捷入口，不涉及具体实现原理说明；是否启用由用户自行决定。",
             s["body"],
         )
     )
@@ -561,11 +561,11 @@ def build_story(styles):
         table(
             [
                 ["按钮", "作用"],
-                ["刷新状态", "检测 Shell、授权文件、skip_re 钩子状态"],
-                ["启用持久化", "部署脚本 + 写入 skip_login.sh 开机钩子 + 立即授权"],
-                ["关闭持久化", "移除钩子与脚本（保留当前授权文件）"],
-                ["立即生效", "仅当前开机创建 /tmp/.adb_auth_verified"],
-                ["测试钩子", "删除授权文件后模拟 skip_login.sh 验证钩子是否生效"],
+                ["刷新状态", "查看当前持久化功能是否已开启、是否生效"],
+                ["启用持久化", "开启功能，便于重启后继续使用 ADB"],
+                ["关闭持久化", "关闭该功能，恢复默认连接方式"],
+                ["立即生效", "在当前状态下立即应用设置"],
+                ["测试配置", "检查持久化功能是否工作正常"],
             ],
             [3.5 * cm, 12.5 * cm],
         )
@@ -575,10 +575,10 @@ def build_story(styles):
         table(
             [
                 ["状态摘要", "含义"],
-                ["未配置", "钩子未安装"],
-                ["已配置", "钩子已装 + 授权文件存在"],
-                ["已配置（重启后自动授权）", "钩子已装，授权文件暂不存在（重启后应自动创建）"],
-                ["请先解锁 ADB 再来", "Shell 不可用，需先完成 PenNewInject"],
+                ["未配置", "功能尚未开启"],
+                ["已配置", "功能已开启且当前可用"],
+                ["已配置（重启后自动生效）", "功能已开启，重启后应继续有效"],
+                ["请先解锁 ADB 再来", "Shell 不可用，需先完成第九章 ADB 解锁"],
             ],
             [5 * cm, 11 * cm],
         )
@@ -586,8 +586,8 @@ def build_story(styles):
     story.append(Spacer(1, 8))
     story.append(
         note(
-            "启用前建议先在 PC 执行 adb shell auth（输入密码）成功，再点「启用持久化」。"
-            "启用后建议重启设备验证。诊断信息会写入 miniapp_cli 输出区。",
+            "请确保 ADB 已正常连接后再启用。启用后建议重启设备验证效果。"
+            "若仍异常，可尝试关闭后重新启用，或查看程序输出区的提示信息。",
             s,
         )
     )
@@ -702,8 +702,10 @@ def build_story(styles):
     story.append(p("第九章  ADB 解锁（PenNewInject）", s["h1"]))
     story.append(
         p(
-            "词典笔出厂时 ADB Shell 可能未开放。需通过 PenNewInject 工具完成付费解锁后，"
-            "工具箱才能执行 Shell、文件浏览、应用管理等全部功能。",
+            "词典笔出厂时 ADB Shell 可能未开放。需通过 <strong>PenNewInject</strong> 完成解锁后，"
+            "工具箱才能执行 Shell、文件浏览、应用管理等全部功能。"
+            "<strong>PenNewInject 与本工具箱均由 MIRROR 开发维护</strong>，"
+            "工具箱内提供下载与启动引导，方便用户一站式完成解锁。",
             s["body"],
         )
     )
@@ -711,19 +713,17 @@ def build_story(styles):
     story.append(bullet("设备信息区橙色横幅「付费解锁」按钮", s))
     story.append(bullet("「ADB破解」标签页", s))
     story.append(p("9.2  解锁向导三步", s["h2"]))
-    story.append(p("<b>第一步 介绍页</b>：说明需通过 PenNewInject 付费解锁。", s["body"]))
+    story.append(p("<b>第一步 介绍页</b>：说明需通过 PenNewInject 解锁 ADB。", s["body"]))
     story.append(p("<b>第二步 付费说明</b>：", s["body"]))
     story.append(bullet("联系邮箱 nullplex2000@proton.me 获取 KEY", s))
     story.append(bullet("付费金额 25 元", s))
     story.append(p("<b>第三步 下载进度</b>：", s["body"]))
     for step in [
-        "从 Gitee 下载 PenNewInject 分片包（manifest: penmirror/ADB/daxiao）",
-        "按需下载 7-Zip 组件（7z.exe、7z.dll）并解压",
-        "启动 PenNewInject.Pro.exe，按工具内指引输入 KEY 完成解锁",
+        "程序自动下载 PenNewInject 安装包及必要解压组件",
+        "解压完成后启动 PenNewInject，按工具内指引输入 KEY 完成解锁",
         "下载过程中对话框不可关闭；失败可重试",
     ]:
         story.append(bullet(step, s))
-    story.append(note("缓存目录：%TEMP%\\YoudaoPenToolbox\\PenNewInject\\", s))
     story.append(p("9.3  解锁后", s["h2"]))
     story.append(
         p(
@@ -913,9 +913,9 @@ def build_story(styles):
             "A：设备平台不在 RK/CVI 自动识别范围，请手动下载对应 AMR 拖入安装。",
         ),
         (
-            "Q：ADB 持久化启用后重启仍要授权？",
-            "A：先 adb shell auth 成功再启用；启用后点「测试钩子」验证；"
-            "确认 /userdisk/skip_re/skip_login.sh 存在且含 YOUDAO_PEN_TOOLBOX_ADB_PERSIST 标记。",
+            "Q：ADB 持久化启用后重启仍要输入密码？",
+            "A：请确认 ADB 解锁已完成且连接正常后，重新尝试「启用持久化」并重启设备验证。"
+            "若问题持续，可先「关闭持久化」再重新启用，或查看程序输出区的状态提示。",
         ),
         (
             "Q：文件预览提示过大？",
@@ -1019,42 +1019,65 @@ def build_story(styles):
     story.append(table([["AppId", "AppId", "AppId"]] + rows, [5.3 * cm, 5.3 * cm, 5.3 * cm]))
     story.append(PageBreak())
 
-    # Appendix C
-    story.append(p("附录 C  重要路径与文件位置", s["h1"]))
+    # Appendix C - Disclaimer
+    story.append(p("附录 C  免责声明与安全须知", s["h1"]))
     story.append(
-        table(
-            [
-                ["路径", "说明"],
-                ["exe 同目录\\adb.exe 等", "首次启动释放的 ADB 组件"],
-                ["exe 同目录\\error.log", "程序崩溃日志"],
-                ["%AppData%\\YoudaoPenToolbox\\theme.txt", "主题偏好"],
-                ["%TEMP%\\YoudaoPenToolbox\\update\\", "更新下载缓存"],
-                ["%TEMP%\\YoudaoPenToolbox\\loli\\", "Loli AMR 下载缓存"],
-                ["%TEMP%\\YoudaoPenToolbox\\PenNewInject\\", "PenNewInject 下载解压缓存"],
-                ["文档\\YoudaoPenToolbox\\PartitionBackups\\", "分区备份默认目录"],
-                ["文档\\YoudaoPenToolbox\\SystemAppBackups\\", "受保护系统应用自动备份"],
-                ["/userdisk/", "设备用户存储，AMR 安装上传目录"],
-                ["/tmp/.adb_auth_verified", "ADB 持久化授权标记"],
-                ["/userdisk/skip_re/skip_login.sh", "ADB 持久化开机钩子"],
-            ],
-            [6 * cm, 10 * cm],
+        p(
+            "请在使用本工具箱及 PenNewInject 前<strong>仔细阅读</strong>以下条款。"
+            "安装、运行或继续使用，即表示您已阅读、理解并同意接受全部条款约束。",
+            s["body"],
         )
     )
-    story.append(PageBreak())
-
-    # Appendix D
-    story.append(p("附录 D  免责声明与安全须知", s["h1"]))
-    disclaimers = [
-        "本工具箱仅供学习与个人设备管理使用。分区刷写、系统应用卸载等操作可能导致设备损坏或数据丢失，"
-        "一切后果由用户自行承担。",
-        "PenNewInject 为第三方付费解锁工具，与工具箱作者无直接关联；KEY 购买与使用请遵循其服务条款。",
-        "从非官方渠道下载的 AMR、分区镜像可能存在安全风险，请仅使用可信来源文件。",
-        "ADB 持久化修改设备开机脚本，若与其他工具冲突请谨慎使用。",
-        "本软件按 AGPL-3.0 协议开源，不提供任何形式的明示或暗示担保。",
-        "使用本软件即表示您已阅读并理解以上条款。",
+    story.append(p("C.1  非官方声明", s["h2"]))
+    disclaimers_official = [
+        "本工具箱（YoudaoPenToolbox）及 PenNewInject 均为<strong>非官方第三方个人项目</strong>，"
+        "由 MIRROR 独立开发维护，与网易公司（NetEase）、网易有道（Youdao）及其关联公司、"
+        "代理商、经销商<strong>无任何隶属、授权、合作或背书关系</strong>。",
+        "手册及软件中出现的「有道词典笔」「有道」等名称、标识，仅用于说明兼容设备类型，"
+        "相关商标、商号及版权归各自权利人所有，本项目的使用<strong>不构成</strong>对任何商标权的许可或侵犯主张的承认。",
+        "本项目<strong>不是</strong>网易或有道官方产品，亦不代表官方立场。",
     ]
-    for i, d in enumerate(disclaimers, 1):
+    for i, d in enumerate(disclaimers_official, 1):
         story.append(bullet(f"{i}. {d}", s))
+    story.append(p("C.2  用户责任与风险自担", s["h2"]))
+    disclaimers_risk = [
+        "用户应在遵守<strong>所在地法律法规</strong>、设备购买协议、保修条款及服务条款的前提下使用本软件。",
+        "ADB 解锁、分区刷写、系统应用卸载、文件修改等操作可能导致设备无法启动、数据丢失、"
+        "功能异常、保修失效或其他不可恢复后果，<strong>一切风险与后果由用户自行承担</strong>。",
+        "用户对在自己设备上执行的全部操作负完全责任，包括但不限于备份重要数据、确认操作对象、评估法律与保修影响。",
+        "因使用或无法使用本软件、PenNewInject 或相关功能而产生的任何直接、间接、附带、特殊、"
+        "惩罚性或后果性损害（含数据丢失、设备损坏、业务中断、法律费用等），"
+        "开发者 MIRROR <strong>不承担任何责任</strong>。",
+    ]
+    for i, d in enumerate(disclaimers_risk, 1):
+        story.append(bullet(f"{i}. {d}", s))
+    story.append(p("C.3  PenNewInject 说明", s["h2"]))
+    disclaimers_pni = [
+        "PenNewInject 由 MIRROR 开发，通过本工具箱提供下载引导，旨在帮助用户在自有设备上完成 ADB 解锁。"
+        "KEY 的获取、付费及使用须遵守 PenNewInject 内说明及适用法律。",
+        "开发者不对用户购买 KEY、解锁结果、设备兼容性作任何明示或暗示的保证。",
+        "用户不得将 PenNewInject 或本工具箱用于任何非法目的，或用于处理非本人合法拥有的设备。",
+    ]
+    for i, d in enumerate(disclaimers_pni, 1):
+        story.append(bullet(f"{i}. {d}", s))
+    story.append(p("C.4  其他条款", s["h2"]))
+    disclaimers_other = [
+        "从非可信来源获取的 AMR 安装包、分区镜像等可能存在恶意代码或版本不匹配风险，请用户自行甄别。",
+        "本软件按 AGPL-3.0 协议开源，按「现状」（AS IS）提供，<strong>不提供任何明示或暗示的担保</strong>，"
+        "包括但不限于适销性、特定用途适用性、不侵权等担保。",
+        "开发者保留随时修改、暂停或终止软件分发与文档内容的权利，恕不另行通知。",
+        "若本条款任何部分被认定无效，其余部分仍然有效。",
+    ]
+    for i, d in enumerate(disclaimers_other, 1):
+        story.append(bullet(f"{i}. {d}", s))
+    story.append(Spacer(1, 0.5 * cm))
+    story.append(
+        warn(
+            "再次提醒：本软件与网易、有道官方无关。使用本软件即表示您自愿承担全部风险，"
+            "并免除开发者 MIRROR 因使用本软件而产生的任何索赔责任（在法律允许的最大范围内）。",
+            s,
+        )
+    )
     story.append(Spacer(1, 1 * cm))
     story.append(
         p(
