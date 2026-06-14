@@ -1,0 +1,16 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <Duration x:Key="AnimFast">0:0:0.18</Duration>
+    <Duration x:Key="AnimNormal">0:0:0.32</Duration>
+    <Duration x:Key="AnimSlow">0:0:0.45</Duration>
+
+    <CubicEase x:Key="EaseOut" EasingMode="EaseOut"/>
+    <CubicEase x:Key="EaseInOut" EasingMode="EaseInOut"/>
+    <PowerEase x:Key="EaseSoft" Power="4" EasingMode="EaseOut"/>
+
+    <sys:Double x:Key="HoverScale">1.015</sys:Double>
+    <sys:Double x:Key="PressScale">0.985</sys:Double>
+
+</ResourceDictionary>

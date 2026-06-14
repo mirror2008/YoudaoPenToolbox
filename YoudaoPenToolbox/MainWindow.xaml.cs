@@ -1,12 +1,17 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
 using System.Windows.Threading;
+using YoudaoPenToolbox.Helpers;
+using YoudaoPenToolbox.Models;
+using YoudaoPenToolbox.Services;
 using YoudaoPenToolbox.ViewModels;
 
 namespace YoudaoPenToolbox
@@ -14,14 +19,40 @@ namespace YoudaoPenToolbox
     public partial class MainWindow : Window
     {
         private readonly MainViewModel _viewModel;
+        private readonly bool _skipEntranceAnimation;
+        private bool _applicationInitialized;
 
-        public MainWindow()
+        public MainWindow(bool skipEntranceAnimation = false)
         {
+            _skipEntranceAnimation = skipEntranceAnimation;
             InitializeComponent();
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
+            AppThemeService.Instance.ThemeChanged += OnAppThemeChanged;
+        }
+
+        public async Task InitializeApplicationAsync()
+        {
+            if (_applicationInitialized)
+            {
+                return;
+            }
+
+            _applicationInitialized = true;
+            UpdateThemeButtonStates();
+            ThemeResourceHelper.ReloadAllDataGrids(this);
+            await _viewModel.InitializeAsync().ConfigureAwait(true);
+            ThemeResourceHelper.ReloadAllDataGrids(this);
+        }
+
+        private void OnAppThemeChanged(object sender, System.EventArgs e)
+        {
+            Background = FindResource("RegionBrush") as Brush;
+            UpdateThemeButtonStates();
+            ThemeResourceHelper.ReloadAllDataGrids(this);
+            ThemeResourceHelper.RefreshElement(this);
         }
 
         private async void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -31,6 +62,8 @@ namespace YoudaoPenToolbox
                 return;
             }
 
+            UiAnimationHelper.PlayTabContentIn(tab);
+
             if (tab.Header?.ToString() == "刷机")
             {
                 await _viewModel.EnsurePartitionsLoadedAsync();
@@ -39,7 +72,58 @@ namespace YoudaoPenToolbox
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            await _viewModel.InitializeAsync();
+            if (!_skipEntranceAnimation)
+            {
+                UiAnimationHelper.PlayWindowEntrance(RootContent);
+            }
+
+            if (!_applicationInitialized)
+            {
+                await InitializeApplicationAsync().ConfigureAwait(true);
+            }
+        }
+
+        private void ThemeAutoButton_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel.SetThemePreference(AppThemePreference.Auto);
+        }
+
+        private void ThemeLightButton_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel.SetThemePreference(AppThemePreference.Light);
+        }
+
+        private void ThemeDarkButton_Click(object sender, RoutedEventArgs e)
+        {
+            _viewModel.SetThemePreference(AppThemePreference.Dark);
+        }
+
+        private void UpdateThemeButtonStates()
+        {
+            var preference = AppThemeService.Instance.Preference;
+            var primary = (Brush)FindResource("PrimaryBrush");
+            var secondary = (Brush)FindResource("SecondaryTextBrush");
+
+            ApplyThemeButtonState(ThemeAutoButton, preference == AppThemePreference.Auto, primary, secondary);
+            ApplyThemeButtonState(ThemeLightButton, preference == AppThemePreference.Light, primary, secondary);
+            ApplyThemeButtonState(ThemeDarkButton, preference == AppThemePreference.Dark, primary, secondary);
+        }
+
+        private static void ApplyThemeButtonState(
+            Button button,
+            bool isActive,
+            Brush primary,
+            Brush inactiveText)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.Background = isActive ? primary : Brushes.Transparent;
+            button.Foreground = isActive ? Brushes.White : inactiveText;
+            button.FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal;
+            UiAnimationHelper.AnimateThemeSegment(button, isActive);
         }
 
         private void MainWindow_Closed(object sender, System.EventArgs e)
@@ -245,7 +329,7 @@ namespace YoudaoPenToolbox
 
         private Brush GetPrimaryBorderBrush()
         {
-            return (Brush)FindResource("PrimaryBrush");
+            return (Brush)FindResource("BorderBrush");
         }
 
         private async void QuickMemoryUsage_Click(object sender, RoutedEventArgs e)
@@ -265,7 +349,7 @@ namespace YoudaoPenToolbox
                 return;
             }
 
-            var confirm = MessageBox.Show(
+            var confirm = AppMessageBox.Show(
                 "将导出 QuickJS 内存快照到设备 /tmp/httpdump.snapshot，是否继续？",
                 "确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (confirm != MessageBoxResult.Yes)

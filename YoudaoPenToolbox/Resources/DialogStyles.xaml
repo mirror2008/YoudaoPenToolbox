@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Style x:Key="DialogCard" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource SecondaryRegionBrush}"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="24"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect BlurRadius="32" ShadowDepth="0" Opacity="0.14" Color="#000000"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="DialogTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+    </Style>
+
+    <Style x:Key="DialogDangerButton" TargetType="Button" BasedOn="{StaticResource PrimaryActionButton}">
+        <Setter Property="Background" Value="#E85D5D"/>
+        <Setter Property="BorderBrush" Value="#E85D5D"/>
+        <Style.Resources>
+            <DropShadowEffect x:Key="DangerGlow" BlurRadius="16" ShadowDepth="0" Opacity="0.24" Color="#E85D5D"/>
+        </Style.Resources>
+    </Style>
+
+</ResourceDictionary>

@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using YoudaoPenToolbox.Helpers;
 
 namespace YoudaoPenToolbox.Views
 {
@@ -8,6 +9,7 @@ namespace YoudaoPenToolbox.Views
         public TextInputDialog(string title, string prompt, string defaultText = "")
         {
             InitializeComponent();
+            DialogAnimationHelper.Register(this);
             Title = title;
             PromptText.Text = prompt;
             InputTextBox.Text = defaultText ?? string.Empty;
@@ -21,7 +23,7 @@ namespace YoudaoPenToolbox.Views
         {
             if (string.IsNullOrWhiteSpace(InputTextBox.Text))
             {
-                System.Windows.MessageBox.Show("名称不能为空。", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppMessageBox.Show("名称不能为空。", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 

@@ -1,8 +1,8 @@
 using System;
-using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using YoudaoPenToolbox.Helpers;
 using YoudaoPenToolbox.Services;
 
 namespace YoudaoPenToolbox.Views
@@ -17,22 +17,13 @@ namespace YoudaoPenToolbox.Views
         public UpdateWindow(AppUpdateCheckResult checkResult, AppUpdateService updateService)
         {
             InitializeComponent();
+            DialogAnimationHelper.Register(this, () => _allowClose);
             _checkResult = checkResult ?? throw new ArgumentNullException(nameof(checkResult));
             _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
 
             VersionTextBlock.Text =
                 $"当前版本 v{_updateService.GetCurrentVersionText()}  →  最新版本 v{_checkResult.RemoteVersionText}";
             Loaded += UpdateWindow_Loaded;
-        }
-
-        protected override void OnClosing(CancelEventArgs e)
-        {
-            if (!_allowClose)
-            {
-                e.Cancel = true;
-            }
-
-            base.OnClosing(e);
         }
 
         private async void UpdateWindow_Loaded(object sender, RoutedEventArgs e)
@@ -42,6 +33,7 @@ namespace YoudaoPenToolbox.Views
 
         private async Task RunUpdateAsync()
         {
+            _allowClose = false;
             ActionPanel.Visibility = Visibility.Collapsed;
             DownloadProgressBar.IsIndeterminate = true;
             ProgressTextBlock.Text = string.Empty;

@@ -1,4 +1,5 @@
 using System.Windows;
+using YoudaoPenToolbox.Helpers;
 using YoudaoPenToolbox.Models;
 
 namespace YoudaoPenToolbox.Views
@@ -8,6 +9,7 @@ namespace YoudaoPenToolbox.Views
         public RemoteFileActionDialog(RemoteFileItem file)
         {
             InitializeComponent();
+            DialogAnimationHelper.Register(this);
             File = file;
             FileNameText.Text = file.Name;
             FilePathText.Text = file.FullPath;

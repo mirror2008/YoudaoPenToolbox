@@ -1,8 +1,8 @@
 using System;
-using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using YoudaoPenToolbox.Helpers;
 using YoudaoPenToolbox.Services;
 
 namespace YoudaoPenToolbox.Views
@@ -16,28 +16,17 @@ namespace YoudaoPenToolbox.Views
         public PenNewInjectUnlockDialog()
         {
             InitializeComponent();
-        }
-
-        protected override void OnClosing(CancelEventArgs e)
-        {
-            if (!_allowClose)
-            {
-                e.Cancel = true;
-            }
-
-            base.OnClosing(e);
+            DialogAnimationHelper.Register(this, () => _allowClose);
         }
 
         private void PayUnlockButton_Click(object sender, RoutedEventArgs e)
         {
-            IntroPanel.Visibility = Visibility.Collapsed;
-            PaymentPanel.Visibility = Visibility.Visible;
+            DialogAnimationHelper.TransitionPanels(IntroPanel, PaymentPanel);
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
-            PaymentPanel.Visibility = Visibility.Collapsed;
-            IntroPanel.Visibility = Visibility.Visible;
+            DialogAnimationHelper.TransitionPanels(PaymentPanel, IntroPanel);
         }
 
         private async void KeyReadyButton_Click(object sender, RoutedEventArgs e)
@@ -52,9 +41,20 @@ namespace YoudaoPenToolbox.Views
 
         private async Task StartDownloadAsync()
         {
-            PaymentPanel.Visibility = Visibility.Collapsed;
-            IntroPanel.Visibility = Visibility.Collapsed;
-            ProgressPanel.Visibility = Visibility.Visible;
+            if (PaymentPanel.Visibility == Visibility.Visible)
+            {
+                DialogAnimationHelper.TransitionPanels(PaymentPanel, ProgressPanel);
+            }
+            else if (IntroPanel.Visibility == Visibility.Visible)
+            {
+                DialogAnimationHelper.TransitionPanels(IntroPanel, ProgressPanel);
+            }
+            else
+            {
+                ProgressPanel.Visibility = Visibility.Visible;
+                ProgressPanel.Opacity = 1;
+            }
+
             RetryPanel.Visibility = Visibility.Collapsed;
             DownloadProgressBar.IsIndeterminate = true;
             ProgressTextBlock.Text = string.Empty;

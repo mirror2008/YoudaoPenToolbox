@@ -15,6 +15,7 @@ namespace YoudaoPenToolbox.Views
         public RemoteFileViewerWindow(RemoteFileItem file, RemoteFileAction viewMode)
         {
             InitializeComponent();
+            DialogAnimationHelper.Register(this);
             File = file;
             ViewMode = viewMode;
 
@@ -71,6 +72,8 @@ namespace YoudaoPenToolbox.Views
                     var lines = await Task.Run(() => new HexDumpVirtualCollection(content.Data)).ConfigureAwait(true);
                     BinaryListBox.ItemsSource = lines;
                     BinaryViewBorder.Visibility = Visibility.Visible;
+                    BinaryViewBorder.Opacity = 0;
+                    DialogAnimationHelper.TransitionPanels(LoadingPanel, BinaryViewBorder);
                     ContentInfo = content;
                     InfoText.Text = BuildInfoText(File, content, lines.Count);
                 }
@@ -80,6 +83,8 @@ namespace YoudaoPenToolbox.Views
                     var lines = await LazyTextLineCollection.CreateAsync(content.Data).ConfigureAwait(true);
                     TextListBox.ItemsSource = lines;
                     TextViewBorder.Visibility = Visibility.Visible;
+                    TextViewBorder.Opacity = 0;
+                    DialogAnimationHelper.TransitionPanels(LoadingPanel, TextViewBorder);
                     ContentInfo = content;
                     InfoText.Text = BuildInfoText(File, content, lines.Count);
                 }
@@ -87,7 +92,8 @@ namespace YoudaoPenToolbox.Views
             catch (Exception ex)
             {
                 InfoText.Text = $"加载失败: {ex.Message}";
-                System.Windows.MessageBox.Show(
+                LoadingPanel.Visibility = Visibility.Collapsed;
+                AppMessageBox.Show(
                     ex.Message,
                     "打开文件失败",
                     MessageBoxButton.OK,
@@ -95,7 +101,6 @@ namespace YoudaoPenToolbox.Views
             }
             finally
             {
-                LoadingPanel.Visibility = Visibility.Collapsed;
                 _isLoading = false;
             }
         }

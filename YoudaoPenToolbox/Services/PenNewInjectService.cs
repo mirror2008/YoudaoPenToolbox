@@ -19,6 +19,8 @@ namespace YoudaoPenToolbox.Services
     {
         private const string ManifestUrl = "https://gitee.com/yanda2008/penmirror/raw/master/ADB/daxiao";
         private const string ShardRawBase = "https://gitee.com/yanda2008/penmirror/raw/master/ADB";
+        private const string SevenZipExeUrl = "https://gitee.com/yanda2008/scpslv9.1.3/raw/master/7z/7z.exe";
+        private const string SevenZipDllUrl = "https://gitee.com/yanda2008/scpslv9.1.3/raw/master/7z/7z.dll";
 
         private static readonly HttpClient HttpClient = CreateHttpClient();
 
@@ -79,9 +81,8 @@ namespace YoudaoPenToolbox.Services
                     .ConfigureAwait(false);
             }
 
-            status?.Report("正在解压...");
             var firstPart = Path.Combine(downloadDir, $"{manifest.ArchiveBaseName}.001");
-            await Extract7ZipAsync(firstPart, extractDir, cancellationToken).ConfigureAwait(false);
+            await Extract7ZipAsync(firstPart, extractDir, status, progress, cancellationToken).ConfigureAwait(false);
 
             var exePath = FindExecutable(extractDir, "PenNewInject.Pro.exe");
             if (exePath == null)
@@ -155,14 +156,55 @@ namespace YoudaoPenToolbox.Services
             }
         }
 
-        private static async Task Extract7ZipAsync(string firstPartPath, string extractDir, CancellationToken cancellationToken)
+        private static async Task<(string ExePath, string WorkingDirectory)> Ensure7ZipToolsAsync(
+            IProgress<string> status,
+            IProgress<DownloadProgress> progress,
+            CancellationToken cancellationToken)
         {
-            var sevenZip = Find7ZipExecutable();
-            if (sevenZip == null)
+            var sevenZipDir = Path.Combine(Path.GetTempPath(), "YoudaoPenToolbox", "7z");
+            var sevenZipExe = Path.Combine(sevenZipDir, "7z.exe");
+            var sevenZipDll = Path.Combine(sevenZipDir, "7z.dll");
+
+            if (IsValidFile(sevenZipExe) && IsValidFile(sevenZipDll))
             {
-                throw new InvalidOperationException("未找到 7-Zip，请先安装 7-Zip 后再试。");
+                return (sevenZipExe, sevenZipDir);
             }
 
+            Directory.CreateDirectory(sevenZipDir);
+
+            status?.Report("正在下载 7-Zip 解压组件 (7z.exe)...");
+            await DownloadFileAsync(SevenZipExeUrl, sevenZipExe, progress, cancellationToken)
+                .ConfigureAwait(false);
+
+            status?.Report("正在下载 7-Zip 解压组件 (7z.dll)...");
+            await DownloadFileAsync(SevenZipDllUrl, sevenZipDll, progress, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!IsValidFile(sevenZipExe) || !IsValidFile(sevenZipDll))
+            {
+                throw new InvalidOperationException("7-Zip 解压组件下载不完整，请检查网络后重试。");
+            }
+
+            return (sevenZipExe, sevenZipDir);
+        }
+
+        private static bool IsValidFile(string path)
+        {
+            return File.Exists(path) && new FileInfo(path).Length > 0;
+        }
+
+        private static async Task Extract7ZipAsync(
+            string firstPartPath,
+            string extractDir,
+            IProgress<string> status,
+            IProgress<DownloadProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            status?.Report("正在准备解压组件...");
+            var (sevenZipExe, sevenZipDir) = await Ensure7ZipToolsAsync(status, progress, cancellationToken)
+                .ConfigureAwait(false);
+
+            status?.Report("正在解压...");
             var args = new StringBuilder();
             args.Append("x ");
             args.Append('"').Append(firstPartPath).Append('"');
@@ -173,7 +215,8 @@ namespace YoudaoPenToolbox.Services
             {
                 process.StartInfo = new ProcessStartInfo
                 {
-                    FileName = sevenZip,
+                    FileName = sevenZipExe,
+                    WorkingDirectory = sevenZipDir,
                     Arguments = args.ToString(),
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -205,27 +248,6 @@ namespace YoudaoPenToolbox.Services
                         : $"7-Zip 解压失败: {error.Trim()}");
                 }
             }
-        }
-
-        private static string Find7ZipExecutable()
-        {
-            var candidates = new[]
-            {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "7z.exe"),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tools", "7z.exe"),
-                @"C:\Program Files\7-Zip\7z.exe",
-                @"C:\Program Files (x86)\7-Zip\7z.exe"
-            };
-
-            foreach (var candidate in candidates)
-            {
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-            }
-
-            return null;
         }
 
         private static string FindExecutable(string rootDirectory, string fileName)
