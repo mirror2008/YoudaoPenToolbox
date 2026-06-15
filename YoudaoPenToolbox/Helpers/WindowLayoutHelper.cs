@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Media;
 
 namespace YoudaoPenToolbox.Helpers
 {
@@ -7,6 +8,7 @@ namespace YoudaoPenToolbox.Helpers
     {
         public const double DesignWidth = 1440;
         public const double DesignHeight = 940;
+        public const double ShadowPadding = 16;
 
         public static void ApplyMainWindowBounds(Window window)
         {
@@ -16,17 +18,43 @@ namespace YoudaoPenToolbox.Helpers
             }
 
             var work = SystemParameters.WorkArea;
-            var width = Math.Min(DesignWidth, work.Width);
-            var height = Math.Min(DesignHeight, work.Height);
+            var maxContentWidth = Math.Max(960, work.Width - ShadowPadding);
+            var maxContentHeight = Math.Max(640, work.Height - ShadowPadding);
 
-            window.MinWidth = Math.Min(1024, width);
-            window.MinHeight = Math.Min(680, height);
+            var contentWidth = Math.Min(DesignWidth, maxContentWidth);
+            var contentHeight = Math.Min(DesignHeight, maxContentHeight);
+
+            window.MinWidth = Math.Min(960 + ShadowPadding, maxContentWidth + ShadowPadding);
+            window.MinHeight = Math.Min(640 + ShadowPadding, maxContentHeight + ShadowPadding);
             window.MaxWidth = work.Width;
             window.MaxHeight = work.Height;
-            window.Width = width;
-            window.Height = height;
-            window.Left = work.Left + Math.Max(0, (work.Width - width) / 2);
-            window.Top = work.Top + Math.Max(0, (work.Height - height) / 2);
+            window.Width = contentWidth + ShadowPadding;
+            window.Height = contentHeight + ShadowPadding;
+            window.Left = work.Left + Math.Max(0, (work.Width - window.Width) / 2);
+            window.Top = work.Top + Math.Max(0, (work.Height - window.Height) / 2);
+        }
+
+        public static double GetContentScale(double contentWidth, double contentHeight)
+        {
+            if (contentWidth <= 0 || contentHeight <= 0)
+            {
+                return 1;
+            }
+
+            var scaleW = contentWidth / DesignWidth;
+            var scaleH = contentHeight / DesignHeight;
+            return Math.Min(1, Math.Min(scaleW, scaleH));
+        }
+
+        public static void ApplyDpiAwareTextOptions(DependencyObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            TextOptions.SetTextFormattingMode(root, TextFormattingMode.Display);
+            TextOptions.SetTextRenderingMode(root, TextRenderingMode.ClearType);
         }
     }
 }

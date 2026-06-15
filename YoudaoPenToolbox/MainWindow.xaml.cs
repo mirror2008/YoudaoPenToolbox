@@ -26,10 +26,12 @@ namespace YoudaoPenToolbox
         {
             _skipEntranceAnimation = skipEntranceAnimation;
             InitializeComponent();
+            WindowChromeHelper.Attach(this);
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
+            DpiChanged += MainWindow_DpiChanged;
             AppThemeService.Instance.ThemeChanged += OnAppThemeChanged;
         }
 
@@ -49,10 +51,52 @@ namespace YoudaoPenToolbox
 
         private void OnAppThemeChanged(object sender, System.EventArgs e)
         {
-            Background = FindResource("RegionBrush") as Brush;
+            Background = Brushes.Transparent;
+            if (WindowShell != null)
+            {
+                WindowShell.Background = FindResource("RegionBrush") as Brush;
+                WindowShell.BorderBrush = FindResource("BorderBrush") as Brush;
+            }
+
+            if (TitleBar != null)
+            {
+                TitleBar.Background = FindResource("SecondaryRegionBrush") as Brush;
+                TitleBar.BorderBrush = FindResource("BorderBrush") as Brush;
+            }
+
             UpdateThemeButtonStates();
             ThemeResourceHelper.ReloadAllDataGrids(this);
             ThemeResourceHelper.RefreshElement(this);
+        }
+
+        private void MainWindow_DpiChanged(object sender, DpiChangedEventArgs e)
+        {
+            WindowLayoutHelper.ApplyMainWindowBounds(this);
+        }
+
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Left)
+            {
+                return;
+            }
+
+            if (e.ClickCount == 2)
+            {
+                return;
+            }
+
+            WindowChromeHelper.TryDragWindow(this);
+        }
+
+        private void MinimizeWindow_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void CloseWindow_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
 
         private async void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -73,6 +117,7 @@ namespace YoudaoPenToolbox
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             WindowLayoutHelper.ApplyMainWindowBounds(this);
+            WindowLayoutHelper.ApplyDpiAwareTextOptions(this);
 
             if (!_skipEntranceAnimation)
             {
