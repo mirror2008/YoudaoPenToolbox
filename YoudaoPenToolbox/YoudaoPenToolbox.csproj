@@ -87,6 +87,7 @@
     <Compile Include="Helpers\DialogAnimationHelper.cs" />
     <Compile Include="Helpers\ThemeResourceHelper.cs" />
     <Compile Include="Helpers\UiAnimationHelper.cs" />
+    <Compile Include="Helpers\WindowChromeHelper.cs" />
     <Compile Include="Helpers\WindowLayoutHelper.cs" />
     <Compile Include="Helpers\ViewModelBase.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />

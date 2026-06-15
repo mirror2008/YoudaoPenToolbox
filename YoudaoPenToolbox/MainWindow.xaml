@@ -6,12 +6,14 @@
         Title="有道词典笔工具箱"
         ResizeMode="CanMinimize"
         WindowStartupLocation="Manual"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         FontFamily="Segoe UI, Microsoft YaHei UI"
         TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType"
-        Background="{DynamicResource RegionBrush}">
+        TextOptions.TextRenderingMode="ClearType">
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
         <conv:BoolToYesNoConverter x:Key="BoolToYesNo"/>
@@ -136,9 +138,72 @@
         </Style>
     </Window.Resources>
 
+    <Border x:Name="WindowShell"
+            Margin="8"
+            CornerRadius="12"
+            Background="{DynamicResource RegionBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            ClipToBounds="True">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="0" Opacity="0.28" Color="#000000"/>
+        </Border.Effect>
+
     <Viewbox x:Name="RootViewbox" Stretch="Uniform" StretchDirection="DownOnly">
         <Grid Width="1440" Height="940">
-    <Grid x:Name="RootContent" Margin="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border x:Name="TitleBar" Grid.Row="0"
+                    Background="{DynamicResource SecondaryRegionBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0,0,0,1"
+                    CornerRadius="12,12,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Border Width="18" Height="18" CornerRadius="5" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#0078D4" Offset="0"/>
+                                    <GradientStop Color="#409EFF" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <TextBlock Text="Y" FontSize="11" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                        </Border>
+                        <TextBlock Text="有道词典笔工具箱" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryTextBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding AppVersion, StringFormat=' v{0}'}" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Style="{StaticResource TitleBarButton}" Click="MinimizeWindow_Click"
+                                ToolTip="最小化">
+                            <Path Data="M0,0 H10" Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                                  StrokeThickness="1.2" Width="10" Height="10" Stretch="None"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button Style="{StaticResource TitleBarCloseButton}" Click="CloseWindow_Click"
+                                ToolTip="关闭">
+                            <Path Data="M0,0 L10,10 M10,0 L0,10"
+                                  Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                                  StrokeThickness="1.2" Width="10" Height="10" Stretch="None"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+    <Grid x:Name="RootContent" Grid.Row="1" Margin="16,12,16,16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="0"/>
@@ -157,11 +222,10 @@
                 </Grid.ColumnDefinitions>
 
                 <WrapPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
-                    <TextBlock Text="有道词典笔工具箱" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,14,4"/>
                     <Border Background="{DynamicResource PrimaryBrush}" CornerRadius="6" Padding="10,3" Margin="0,0,14,4" VerticalAlignment="Center">
                         <TextBlock Text="百宝盒" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
                     </Border>
-                    <TextBlock Text="{Binding AppVersion, StringFormat=v{0}}" VerticalAlignment="Center" Margin="0,0,14,4"
+                    <TextBlock Text="多设备管理 · 应用 · 文件 · 调试" VerticalAlignment="Center" Margin="0,0,14,4"
                                Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
                 </WrapPanel>
 
@@ -974,4 +1038,5 @@
     </Grid>
         </Grid>
     </Viewbox>
+    </Border>
 </Window>
