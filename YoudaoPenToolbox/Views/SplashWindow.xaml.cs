@@ -39,7 +39,7 @@ namespace YoudaoPenToolbox.Views
 
         private void SplashWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            WindowLayoutHelper.ApplyMainWindowBounds(this);
+            WindowLayoutHelper.ApplyInitialWindowBounds(this);
             PlayEntranceAnimation();
             StartAmbientBreathing();
             StartSpinnerRotation();

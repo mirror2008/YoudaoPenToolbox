@@ -21,16 +21,18 @@ namespace YoudaoPenToolbox
         private readonly MainViewModel _viewModel;
         private readonly bool _skipEntranceAnimation;
         private bool _applicationInitialized;
+        private bool _isAdjustingAspect;
 
         public MainWindow(bool skipEntranceAnimation = false)
         {
             _skipEntranceAnimation = skipEntranceAnimation;
             InitializeComponent();
-            WindowChromeHelper.Attach(this);
+            WindowChromeHelper.Attach(this, OnWindowSizeMoveChanged);
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
+            SizeChanged += MainWindow_SizeChanged;
             DpiChanged += MainWindow_DpiChanged;
             AppThemeService.Instance.ThemeChanged += OnAppThemeChanged;
         }
@@ -71,22 +73,70 @@ namespace YoudaoPenToolbox
 
         private void MainWindow_DpiChanged(object sender, DpiChangedEventArgs e)
         {
-            WindowLayoutHelper.ApplyMainWindowBounds(this);
+            WindowLayoutHelper.ApplyWorkAreaLimits(this);
+            EnforceWindowAspectRatio();
+        }
+
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            EnforceWindowAspectRatio();
+        }
+
+        private void EnforceWindowAspectRatio()
+        {
+            if (_isAdjustingAspect)
+            {
+                return;
+            }
+
+            _isAdjustingAspect = true;
+            try
+            {
+                WindowLayoutHelper.EnforceAspectRatio(this);
+            }
+            finally
+            {
+                _isAdjustingAspect = false;
+            }
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton != MouseButton.Left)
+            if (e.ChangedButton != MouseButton.Left || e.ClickCount > 1)
             {
                 return;
             }
 
-            if (e.ClickCount == 2)
+            if (e.Source is DependencyObject source &&
+                IsInsideWindowChromeButton(source))
             {
                 return;
             }
 
-            WindowChromeHelper.TryDragWindow(this);
+            e.Handled = true;
+
+            try
+            {
+                DragMove();
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        private static bool IsInsideWindowChromeButton(DependencyObject source)
+        {
+            while (source != null)
+            {
+                if (source is Button)
+                {
+                    return true;
+                }
+
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return false;
         }
 
         private void MinimizeWindow_Click(object sender, RoutedEventArgs e)
@@ -97,6 +147,18 @@ namespace YoudaoPenToolbox
         private void CloseWindow_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void OnWindowSizeMoveChanged(bool isActive)
+        {
+            if (RootViewbox == null)
+            {
+                return;
+            }
+
+            RenderOptions.SetBitmapScalingMode(
+                RootViewbox,
+                isActive ? BitmapScalingMode.LowQuality : BitmapScalingMode.HighQuality);
         }
 
         private async void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -116,7 +178,7 @@ namespace YoudaoPenToolbox
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            WindowLayoutHelper.ApplyMainWindowBounds(this);
+            WindowLayoutHelper.ApplyInitialWindowBounds(this);
             WindowLayoutHelper.ApplyDpiAwareTextOptions(this);
 
             if (!_skipEntranceAnimation)
