@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using YoudaoPenToolbox.Models;
@@ -158,10 +159,23 @@ namespace YoudaoPenToolbox.Services
             return $"{safeName}_v{version}_{appId}.amr";
         }
 
-        public static string BuildSafeRemoteInstallName(string appId)
+        private const string RemoteInstallNameChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+        public static string BuildSafeRemoteInstallName()
         {
-            var safeAppId = SanitizeFileName(string.IsNullOrWhiteSpace(appId) ? "unknown" : appId);
-            return $"ypt_install_{safeAppId}_{DateTime.Now.Ticks}.amr";
+            var buffer = new char[10];
+            var randomBytes = new byte[10];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(randomBytes);
+            }
+
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                buffer[i] = RemoteInstallNameChars[randomBytes[i] % RemoteInstallNameChars.Length];
+            }
+
+            return new string(buffer) + ".amr";
         }
 
         public static string SanitizeFileName(string value)

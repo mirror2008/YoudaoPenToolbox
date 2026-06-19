@@ -6,7 +6,8 @@
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        ShowInTaskbar="False"
+        ShowInTaskbar="True"
+        Topmost="True"
         FontFamily="Segoe UI, Microsoft YaHei UI"
         Background="{DynamicResource RegionBrush}">
     <Border x:Name="DialogRoot" Style="{StaticResource DialogCard}" Margin="24">

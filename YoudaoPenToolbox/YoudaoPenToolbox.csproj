@@ -155,6 +155,7 @@
     <Compile Include="Models\InstalledApp.cs" />
     <Compile Include="Models\MiniAppParameter.cs" />
     <Compile Include="Models\MiniAppCommand.cs" />
+    <Compile Include="Models\DeviceCompatibilityReport.cs" />
     <Compile Include="Models\LoliPlatformInfo.cs" />
     <Compile Include="Models\AdbPersistStatus.cs" />
     <Compile Include="Models\ProcessInfo.cs" />
