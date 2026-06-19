@@ -42,6 +42,7 @@
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
@@ -81,6 +82,7 @@
     <Compile Include="Helpers\HexDumpFormatter.cs" />
     <Compile Include="Helpers\HexDumpVirtualCollection.cs" />
     <Compile Include="Helpers\LazyTextLineCollection.cs" />
+    <Compile Include="Helpers\LocalFileDialogHelper.cs" />
     <Compile Include="Helpers\RelayCommand.cs" />
     <Compile Include="Helpers\TextEncodingHelper.cs" />
     <Compile Include="Helpers\AppMessageBox.cs" />

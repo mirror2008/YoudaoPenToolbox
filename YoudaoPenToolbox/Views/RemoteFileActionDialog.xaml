@@ -29,7 +29,8 @@
             <StackPanel>
                 <Button Content="下载到电脑..." Height="42" Margin="0,0,0,8"
                         HorizontalContentAlignment="Left" Padding="16,0"
-                        Click="Download_Click"/>
+                        Click="Download_Click"
+                        ToolTip="选择保存位置后下载到电脑"/>
                 <Button Content="记事本打开（内置）" Height="42" Margin="0,0,0,8"
                         HorizontalContentAlignment="Left" Padding="16,0"
                         Click="OpenText_Click"/>

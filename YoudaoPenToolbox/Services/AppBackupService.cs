@@ -178,6 +178,23 @@ namespace YoudaoPenToolbox.Services
             return new string(buffer) + ".amr";
         }
 
+        public static async Task TryDeleteRemoteFileAsync(AdbService adbService, string serial, string remotePath)
+        {
+            if (adbService == null || string.IsNullOrWhiteSpace(serial) || string.IsNullOrWhiteSpace(remotePath))
+            {
+                return;
+            }
+
+            try
+            {
+                var quoted = RemotePathHelper.ShellQuote(remotePath);
+                await adbService.ShellAsync(serial, $"rm -f {quoted}").ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
         public static string SanitizeFileName(string value)
         {
             if (string.IsNullOrWhiteSpace(value))

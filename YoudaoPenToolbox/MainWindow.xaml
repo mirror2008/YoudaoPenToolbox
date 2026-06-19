@@ -808,6 +808,8 @@
                                         ToolTip="进入选中的文件夹或链接目录"/>
                                 <Button Content="新建文件夹" Command="{Binding CreateRemoteFolderCommand}" Margin="0,0,8,8"/>
                                 <Button Content="重命名" Command="{Binding RenameRemoteFileCommand}" Margin="0,0,8,8"/>
+                                <Button Content="下载" Command="{Binding DownloadRemoteFilesCommand}" Margin="0,0,8,8"
+                                        ToolTip="下载选中文件到电脑，需先选择保存位置"/>
                                 <Button Content="删除" Command="{Binding DeleteRemoteFileCommand}" Margin="0,0,8,8"/>
                                 <Button Content="上传文件" Command="{Binding BrowseUploadRemoteFilesCommand}" Margin="0,0,8,8"/>
                                 <TextBlock VerticalAlignment="Center" Margin="0,0,8,8"
@@ -841,14 +843,21 @@
                                     <Border Padding="12,10" CornerRadius="8" Margin="0,0,0,20"
                                             Background="{DynamicResource ThirdlyRegionBrush}"
                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                            Visibility="{Binding NeedsAdbUnlock, Converter={StaticResource BoolToVis}}">
+                                            Visibility="{Binding ShowAdbUnlockNoDevicePanel, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="当前未连接设备，请用 USB 连接词典笔后点击「刷新设备」。"
+                                                   TextWrapping="Wrap" FontSize="14"/>
+                                    </Border>
+                                    <Border Padding="12,10" CornerRadius="8" Margin="0,0,0,20"
+                                            Background="{DynamicResource ThirdlyRegionBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                            Visibility="{Binding ShowAdbUnlockRequiredPanel, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Text="当前设备尚未解锁 ADB，请点击下方按钮开始解锁流程。"
                                                    TextWrapping="Wrap" FontSize="14"/>
                                     </Border>
                                     <Border Padding="12,10" CornerRadius="8" Margin="0,0,0,20"
                                             Background="{DynamicResource ThirdlyRegionBrush}"
                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                            Visibility="{Binding NeedsAdbUnlock, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                                            Visibility="{Binding ShowAdbUnlockAvailablePanel, Converter={StaticResource BoolToVis}}">
                                         <TextBlock Text="当前设备 ADB 已可用；如需重新运行解锁工具，也可点击下方按钮。"
                                                    TextWrapping="Wrap" FontSize="14"/>
                                     </Border>

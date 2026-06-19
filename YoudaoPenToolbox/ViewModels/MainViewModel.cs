@@ -161,6 +161,7 @@ namespace YoudaoPenToolbox.ViewModels
             NavigateRemotePathCommand = new RelayCommand(async () => await NavigateRemotePathAsync(), () => SelectedDevice != null && !IsBusy);
             EnterRemoteDirectoryCommand = new RelayCommand(async () => await EnterSelectedRemoteDirectoryAsync(), CanEnterSelectedRemoteDirectory);
             DeleteRemoteFileCommand = new RelayCommand(async () => await DeleteSelectedRemoteFileAsync(), CanDeleteSelectedRemoteFile);
+            DownloadRemoteFilesCommand = new RelayCommand(async () => await DownloadSelectedRemoteFilesAsync(), CanDownloadSelectedRemoteFiles);
             BrowseUploadRemoteFilesCommand = new RelayCommand(BrowseUploadRemoteFiles, () => SelectedDevice != null && !IsBusy);
             CreateRemoteFolderCommand = new RelayCommand(async () => await CreateRemoteFolderAsync(), () => SelectedDevice != null && !IsBusy);
             RenameRemoteFileCommand = new RelayCommand(async () => await RenameSelectedRemoteFileAsync(), CanRenameSelectedRemoteFile);
@@ -190,6 +191,7 @@ namespace YoudaoPenToolbox.ViewModels
                 if (SetProperty(ref _selectedDevice, value))
                 {
                     OnPropertyChanged(nameof(HasSelectedDevice));
+                    NotifyAdbUnlockPanelState();
                     _ = OnDeviceSelectedAsync();
                 }
             }
@@ -374,7 +376,26 @@ namespace YoudaoPenToolbox.ViewModels
         public bool NeedsAdbUnlock
         {
             get => _needsAdbUnlock;
-            set => SetProperty(ref _needsAdbUnlock, value);
+            set
+            {
+                if (SetProperty(ref _needsAdbUnlock, value))
+                {
+                    NotifyAdbUnlockPanelState();
+                }
+            }
+        }
+
+        public bool ShowAdbUnlockRequiredPanel => HasSelectedDevice && NeedsAdbUnlock;
+
+        public bool ShowAdbUnlockAvailablePanel => HasSelectedDevice && !NeedsAdbUnlock;
+
+        public bool ShowAdbUnlockNoDevicePanel => !HasSelectedDevice;
+
+        private void NotifyAdbUnlockPanelState()
+        {
+            OnPropertyChanged(nameof(ShowAdbUnlockRequiredPanel));
+            OnPropertyChanged(nameof(ShowAdbUnlockAvailablePanel));
+            OnPropertyChanged(nameof(ShowAdbUnlockNoDevicePanel));
         }
 
         public string SearchAppText
@@ -569,6 +590,7 @@ namespace YoudaoPenToolbox.ViewModels
         public RelayCommand NavigateRemotePathCommand { get; }
         public RelayCommand EnterRemoteDirectoryCommand { get; }
         public RelayCommand DeleteRemoteFileCommand { get; }
+        public RelayCommand DownloadRemoteFilesCommand { get; }
         public RelayCommand BrowseUploadRemoteFilesCommand { get; }
         public RelayCommand CreateRemoteFolderCommand { get; }
         public RelayCommand RenameRemoteFileCommand { get; }
@@ -763,6 +785,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             OnPropertyChanged(nameof(HasSelectedDevice));
+            NotifyAdbUnlockPanelState();
         }
 
         private async Task EnrichDeviceInfoAsync(DeviceInfo device)
@@ -1652,15 +1675,17 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             StatusMessage = $"正在上传 {fileName} 到设备...";
+            var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName()}";
+            var remoteUploaded = false;
             try
             {
-                var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName()}";
                 var pushed = await _adbService.PushFileAsync(SelectedDevice.Serial, localPath, remotePath);
                 if (!pushed)
                 {
                     throw new InvalidOperationException("上传 AMR 文件到设备失败");
                 }
 
+                remoteUploaded = true;
                 StatusMessage = "正在设备安装 AMR，请勿断开...";
                 var result = await _cliService.ExecuteRawAsync(SelectedDevice.Serial, $"install {remotePath}", 300000);
                 var installResult = MiniAppCliResultParser.ParseInstall(result);
@@ -1701,6 +1726,12 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
+                if (remoteUploaded)
+                {
+                    await AppBackupService.TryDeleteRemoteFileAsync(_adbService, SelectedDevice.Serial, remotePath)
+                        .ConfigureAwait(true);
+                }
+
                 if (manageBusyState)
                 {
                     IsBusy = false;
@@ -2053,7 +2084,10 @@ namespace YoudaoPenToolbox.ViewModels
             var dlg = new Microsoft.Win32.SaveFileDialog
             {
                 Filter = "PNG 图片|*.png",
-                FileName = $"capture_{DateTime.Now:yyyyMMdd_HHmmss}.png"
+                FileName = $"capture_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                Title = "选择截图保存位置",
+                InitialDirectory = LocalFileDialogHelper.DefaultDirectory,
+                OverwritePrompt = true
             };
 
             if (dlg.ShowDialog() != true)
@@ -2623,31 +2657,108 @@ namespace YoudaoPenToolbox.ViewModels
 
         private async Task DownloadRemoteFileAsync(RemoteFileItem item)
         {
+            if (SelectedDevice == null || item == null || item.IsDirectory)
+            {
+                return;
+            }
+
+            var suggestedName = DeviceFileBrowserService.GetEntryFileName(item);
+            if (!LocalFileDialogHelper.TryPickSaveFile(
+                    "选择保存位置",
+                    suggestedName,
+                    out var localPath,
+                    LocalFileDialogHelper.BuildSaveFilter(suggestedName)))
+            {
+                return;
+            }
+
+            await PullRemoteFileToLocalAsync(item, localPath).ConfigureAwait(true);
+        }
+
+        private async Task DownloadSelectedRemoteFilesAsync()
+        {
             if (SelectedDevice == null)
             {
                 return;
             }
 
-            var dlg = new Microsoft.Win32.SaveFileDialog
+            var items = GetSelectedRemoteFileItems()
+                .Where(item => item != null && !item.IsDirectory)
+                .ToList();
+            if (items.Count == 0)
             {
-                Title = "保存到电脑",
-                FileName = DeviceFileBrowserService.GetEntryFileName(item)
-            };
+                Growl.Warning("请选择要下载的文件");
+                return;
+            }
 
-            if (dlg.ShowDialog() != true)
+            if (items.Count == 1)
+            {
+                await DownloadRemoteFileAsync(items[0]).ConfigureAwait(true);
+                return;
+            }
+
+            if (!LocalFileDialogHelper.TryPickSaveDirectory("选择多个文件的保存文件夹", out var directory))
             {
                 return;
             }
 
             IsBusy = true;
+            var successCount = 0;
+            try
+            {
+                for (var i = 0; i < items.Count; i++)
+                {
+                    var item = items[i];
+                    var fileName = DeviceFileBrowserService.GetEntryFileName(item);
+                    var localPath = LocalFileDialogHelper.BuildUniqueLocalPath(directory, fileName);
+                    StatusMessage = $"正在下载 ({i + 1}/{items.Count}) {fileName}...";
+
+                    var pulled = await _adbService.PullFileAsync(SelectedDevice.Serial, item.FullPath, localPath)
+                        .ConfigureAwait(true);
+                    if (pulled)
+                    {
+                        successCount++;
+                    }
+                }
+
+                if (successCount == items.Count)
+                {
+                    Growl.Success($"已下载 {successCount} 个文件到 {directory}");
+                    StatusMessage = $"已下载 {successCount} 个文件";
+                }
+                else if (successCount > 0)
+                {
+                    Growl.Warning($"部分下载完成：{successCount}/{items.Count}，保存到 {directory}");
+                    StatusMessage = $"部分下载完成 ({successCount}/{items.Count})";
+                }
+                else
+                {
+                    Growl.Warning("下载失败，请检查文件路径与权限");
+                    StatusMessage = "下载失败";
+                }
+            }
+            catch (Exception ex)
+            {
+                Growl.Error(ex.Message);
+                StatusMessage = ex.Message;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private async Task PullRemoteFileToLocalAsync(RemoteFileItem item, string localPath)
+        {
+            IsBusy = true;
             StatusMessage = $"正在下载 {item.Name}...";
             try
             {
-                var pulled = await _adbService.PullFileAsync(SelectedDevice.Serial, item.FullPath, dlg.FileName)
+                var pulled = await _adbService.PullFileAsync(SelectedDevice.Serial, item.FullPath, localPath)
                     .ConfigureAwait(true);
                 if (pulled)
                 {
-                    Growl.Success($"已保存到 {dlg.FileName}");
+                    Growl.Success($"已保存到 {localPath}");
                     StatusMessage = $"已下载 {item.Name}";
                 }
                 else
@@ -2665,6 +2776,16 @@ namespace YoudaoPenToolbox.ViewModels
             {
                 IsBusy = false;
             }
+        }
+
+        private bool CanDownloadSelectedRemoteFiles()
+        {
+            if (SelectedDevice == null || IsBusy)
+            {
+                return false;
+            }
+
+            return GetSelectedRemoteFileItems().Any(item => item != null && !item.IsDirectory);
         }
 
         private async Task OpenRemoteFileViewerAsync(RemoteFileItem item, RemoteFileAction viewMode)
@@ -3380,27 +3501,23 @@ namespace YoudaoPenToolbox.ViewModels
 
             var partition = SelectedBlockPartition;
             var defaultPath = PartitionBackupService.BuildDefaultExtractPath(SelectedDevice.Serial, partition.Name);
-            var dlg = new Microsoft.Win32.SaveFileDialog
-            {
-                Title = "提取分区镜像",
-                Filter = "镜像文件|*.img;*.bin|所有文件|*.*",
-                FileName = Path.GetFileName(defaultPath),
-                InitialDirectory = Path.GetDirectoryName(defaultPath)
-            };
-
-            if (dlg.ShowDialog() != true)
+            if (!LocalFileDialogHelper.TryPickSaveFile(
+                    "选择分区镜像保存位置",
+                    Path.GetFileName(defaultPath),
+                    out var targetPath,
+                    "镜像文件|*.img;*.bin|所有文件|*.*"))
             {
                 return;
             }
 
-            if (!ConfirmPartitionExtract(new[] { partition }, dlg.FileName, singleFileMode: true))
+            if (!ConfirmPartitionExtract(new[] { partition }, targetPath, singleFileMode: true))
             {
                 return;
             }
 
             await ExtractPartitionsInternalAsync(
                 new[] { partition },
-                _ => dlg.FileName,
+                _ => targetPath,
                 "提取分区",
                 showPerItemCompletionDialog: true).ConfigureAwait(true);
         }
@@ -3413,7 +3530,11 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            var outputDir = PartitionBackupService.BuildBatchBackupDirectory(SelectedDevice.Serial);
+            if (!LocalFileDialogHelper.TryPickSaveDirectory("选择批量提取分区的保存文件夹", out var outputDir))
+            {
+                return;
+            }
+
             var batchStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             var confirm = AppMessageBox.Show(
                 BuildBatchExtractConfirmMessage(selected, outputDir),
@@ -3448,7 +3569,11 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            var outputDir = PartitionBackupService.BuildBatchBackupDirectory(SelectedDevice.Serial);
+            if (!LocalFileDialogHelper.TryPickSaveDirectory("选择常用套装分区的保存文件夹", out var outputDir))
+            {
+                return;
+            }
+
             var presetNames = string.Join(", ", preset.Select(p => p.Name));
             var confirm = AppMessageBox.Show(
                 BuildBatchExtractConfirmMessage(preset, outputDir, $"常用套装: {presetNames}"),
