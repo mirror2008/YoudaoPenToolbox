@@ -104,12 +104,12 @@ namespace YoudaoPenToolbox.Services
             return status;
         }
 
-        public Task<string> ShellAsync(string serial, string command)
+        public Task<string> ShellAsync(string serial, string command, int timeoutMs = 120000)
         {
             var args = string.IsNullOrEmpty(serial)
                 ? $"shell {command}"
                 : $"-s {serial} shell {command}";
-            return RunAdbAsync(args);
+            return RunAdbAsync(args, timeoutMs);
         }
 
         public static bool IsShellAuthRequired(string output)
@@ -188,13 +188,13 @@ namespace YoudaoPenToolbox.Services
             });
         }
 
-        public async Task<bool> PushFileAsync(string serial, string localPath, string remotePath)
+        public async Task<bool> PushFileAsync(string serial, string localPath, string remotePath, int timeoutMs = 180000)
         {
             var args = string.IsNullOrEmpty(serial)
                 ? $"push \"{localPath}\" \"{remotePath}\""
                 : $"-s {serial} push \"{localPath}\" \"{remotePath}\"";
 
-            var output = await RunAdbAsync(args).ConfigureAwait(false);
+            var output = await RunAdbAsync(args, timeoutMs).ConfigureAwait(false);
             return output.IndexOf("error", StringComparison.OrdinalIgnoreCase) < 0
                    && output.IndexOf("failed", StringComparison.OrdinalIgnoreCase) < 0;
         }
@@ -244,37 +244,60 @@ namespace YoudaoPenToolbox.Services
             }
         }
 
-        public Task<string> RunAdbAsync(string arguments)
+        public Task<string> RunAdbAsync(string arguments, int timeoutMs = 120000)
         {
-            return Task.Run(() =>
+            return Task.Run(() => ExecuteAdbProcess(arguments, timeoutMs));
+        }
+
+        private string ExecuteAdbProcess(string arguments, int timeoutMs)
+        {
+            var psi = new ProcessStartInfo
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = AdbPath,
-                    Arguments = arguments,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
-                };
+                FileName = AdbPath,
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
 
-                using (var process = Process.Start(psi))
+            using (var process = Process.Start(psi))
+            {
+                if (process == null)
                 {
-                    var output = process.StandardOutput.ReadToEnd();
-                    var error = process.StandardError.ReadToEnd();
-                    process.WaitForExit(120000);
+                    throw new InvalidOperationException($"无法启动 ADB 进程: adb {arguments}");
+                }
 
-                    var combined = string.IsNullOrWhiteSpace(output) ? error.Trim() : output.Trim();
-                    if (!string.IsNullOrWhiteSpace(error) && !string.IsNullOrWhiteSpace(output))
+                var outputTask = Task.Run(() => process.StandardOutput.ReadToEnd());
+                var errorTask = Task.Run(() => process.StandardError.ReadToEnd());
+
+                if (!process.WaitForExit(timeoutMs))
+                {
+                    try
                     {
-                        combined = output.Trim() + Environment.NewLine + error.Trim();
+                        process.Kill();
+                    }
+                    catch
+                    {
                     }
 
-                    return combined;
+                    throw new TimeoutException($"ADB 操作超时（{timeoutMs / 1000} 秒）: adb {arguments}");
                 }
-            });
+
+                Task.WaitAll(outputTask, errorTask);
+
+                var output = outputTask.Result;
+                var error = errorTask.Result;
+                var combined = string.IsNullOrWhiteSpace(output) ? error.Trim() : output.Trim();
+                if (!string.IsNullOrWhiteSpace(error) && !string.IsNullOrWhiteSpace(output))
+                {
+                    combined = output.Trim() + Environment.NewLine + error.Trim();
+                }
+
+                return combined;
+            }
         }
 
         private async Task FillDevicePropertiesAsync(DeviceInfo device)

@@ -173,7 +173,7 @@ namespace YoudaoPenToolbox.Services
             return await _adbService.ShellAsync(serial, shellCommand).ConfigureAwait(false);
         }
 
-        public Task<string> ExecuteRawAsync(string serial, string rawCommand)
+        public Task<string> ExecuteRawAsync(string serial, string rawCommand, int timeoutMs = 120000)
         {
             var command = rawCommand?.Trim() ?? string.Empty;
             if (!command.StartsWith("miniapp_cli", System.StringComparison.OrdinalIgnoreCase))
@@ -181,7 +181,7 @@ namespace YoudaoPenToolbox.Services
                 command = "miniapp_cli " + command;
             }
 
-            return _adbService.ShellAsync(serial, command);
+            return _adbService.ShellAsync(serial, command, timeoutMs);
         }
     }
 }

@@ -391,7 +391,6 @@
                                 <RowDefinition Height="*" MinHeight="224"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="58"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Text="{Binding AppsSummaryText}" Margin="0,0,0,6"
@@ -406,9 +405,6 @@
                                 <Button Content="备份 AMR" Command="{Binding BackupSelectedAppCommand}" Margin="0,0,8,8"
                                         Style="{StaticResource ButtonPrimary}"
                                         ToolTip="选中应用后，从设备安装目录反向打包为 .amr"/>
-                                <Button Content="一键安装 Loli" Command="{Binding InstallLoliAppCommand}"
-                                        Margin="0,0,8,8"
-                                        ToolTip="自动识别 RK/CVI 芯片，从 Gitee 下载最新 Loli 并安装"/>
                                 <CheckBox Content="显示系统应用" IsChecked="{Binding ShowSystemApps}" VerticalAlignment="Center" Margin="0,0,8,8"/>
                             </WrapPanel>
 
@@ -479,26 +475,71 @@
                                          hc:InfoElement.Placeholder="启动页面" Margin="0,0,8,8"/>
                                 <Button Content="启动选中" Command="{Binding StartAppCommand}" Margin="0,0,8,8"/>
                                 <Button Content="备份 AMR" Command="{Binding BackupSelectedAppCommand}" Margin="0,0,8,8"
-                                        ToolTip="从设备安装目录反向打包为 .amr，可拖回工具箱安装"/>
+                                        ToolTip="从设备安装目录反向打包为 .amr，可拖至「APP 安装」页安装"/>
                                 <Button Content="卸载选中" Command="{Binding UninstallAppCommand}" Margin="0,0,8,8"
                                         ToolTip="普通应用可备份后卸载；受保护系统应用将自动备份 AMR 并提示找回方式"/>
                                 <TextBlock Text="点击表头「占用大小」可排序" VerticalAlignment="Center"
                                            Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,0,8,8"/>
                             </WrapPanel>
-
-                            <Border Grid.Row="5" x:Name="DropZone" Style="{StaticResource DropZonePanel}" Margin="0,6,0,0"
-                                    AllowDrop="True"
-                                    Drop="DropZone_Drop" DragEnter="DropZone_DragEnter"
-                                    DragOver="DropZone_DragOver" DragLeave="DropZone_DragLeave"
-                                    GiveFeedback="DropZone_GiveFeedback">
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock Text="将 .amr 小程序包拖放到此处安装" FontSize="14" HorizontalAlignment="Center"
-                                               Foreground="{DynamicResource PrimaryTextBrush}"/>
-                                    <TextBlock Text="拖入后会弹出确认对话框，不会自动安装" FontSize="11"
-                                               Foreground="{DynamicResource SecondaryTextBrush}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Border>
                         </Grid>
+                    </TabItem>
+
+                    <TabItem Header="APP 安装">
+                        <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="APP 安装（AMR 小程序包）" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12">
+                                    <Run Text="将 .amr 小程序包拖放到下方区域，或点击选择文件。安装前会弹出确认对话框，不会自动安装。"/>
+                                </TextBlock>
+
+                                <Border x:Name="AmrInstallDropZone" Style="{StaticResource DropZonePanel}" Height="120" Margin="0,0,0,12"
+                                        AllowDrop="True"
+                                        Drop="AmrInstallDropZone_Drop" DragEnter="AmrInstallDropZone_DragEnter"
+                                        DragOver="AmrInstallDropZone_DragOver" DragLeave="AmrInstallDropZone_DragLeave"
+                                        GiveFeedback="AmrInstallDropZone_GiveFeedback">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="将 .amr 小程序包拖放到此处安装" FontSize="15" HorizontalAlignment="Center"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <Button Content="选择 AMR 文件" Command="{Binding BrowseInstallAmrCommand}"
+                                                Margin="0,10,0,0" HorizontalAlignment="Center"
+                                                Style="{StaticResource ButtonPrimary}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="一键安装 Loli" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8"/>
+                                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12" LineHeight="20">
+                                    <Run Text="兼容性检测会执行 uname -m、device-tree/compatible、/usr/bin、/dev、gst-launch-1.0、miniapp_cli 等指令，并据此选择安装分支："/>
+                                    <LineBreak/>
+                                    <Run Text="· rk-gst/ — RK 系列，GStreamer（已确认 X7、X7Pro）"/>
+                                    <LineBreak/>
+                                    <Run Text="· cvi-ffmpeg/ — CVI 系列，FFmpeg"/>
+                                </TextBlock>
+
+                                <WrapPanel Margin="0,0,0,12">
+                                    <Button Content="运行兼容性检测" Command="{Binding RunCompatibilityCheckCommand}"
+                                            Margin="0,0,8,8" Width="140" Height="36"/>
+                                    <Button Content="一键安装 Loli" Command="{Binding InstallLoliAppCommand}"
+                                            Style="{StaticResource ButtonPrimary}"
+                                            Margin="0,0,8,8" Width="140" Height="36"
+                                            ToolTip="先运行兼容性检测识别分支，再从 Gitee 下载最新 Loli 并安装"/>
+                                </WrapPanel>
+
+                                <Border Style="{StaticResource DetailPanel}" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding CompatibilityPlatformSummary}" TextWrapping="Wrap" FontSize="13"
+                                               Foreground="{DynamicResource PrimaryTextBrush}" LineHeight="20"/>
+                                </Border>
+
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="兼容性检测原始输出" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </DockPanel>
+                                <TextBox Text="{Binding CompatibilityReport, Mode=OneWay}"
+                                         Style="{StaticResource OutputTextBox}"
+                                         IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                         FontFamily="Consolas" MinHeight="240" Margin="0,0,0,8"
+                                         hc:InfoElement.Placeholder="点击「运行兼容性检测」后，这里会显示各条 adb 指令的原始输出..."/>
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
 
                     <TabItem Header="miniapp_cli">
@@ -626,10 +667,6 @@
                                             ToolTip="执行 sync; poweroff"/>
                                 </WrapPanel>
                                 <WrapPanel>
-                            <Button Content="一键安装 Loli" Command="{Binding InstallLoliAppCommand}"
-                                    Width="200" Height="48" Margin="0,0,12,12"
-                                    Style="{StaticResource ButtonPrimary}"
-                                    ToolTip="自动识别 RK/CVI 芯片，从 Gitee 下载最新 Loli 并安装"/>
                             <Button Content="进程内存 (memoryApp)" Command="{Binding QuickMemoryAppCommand}"
                                     Width="200" Height="48" Margin="0,0,12,12"/>
                             <Button Content="清理图片缓存 (trimImageCache)" Command="{Binding QuickTrimCacheCommand}"

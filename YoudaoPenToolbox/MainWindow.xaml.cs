@@ -251,12 +251,12 @@ namespace YoudaoPenToolbox
             e.Handled = true;
         }
 
-        private void DropZone_DragEnter(object sender, DragEventArgs e)
+        private void AmrInstallDropZone_DragEnter(object sender, DragEventArgs e)
         {
-            DropZone_DragOver(sender, e);
+            AmrInstallDropZone_DragOver(sender, e);
         }
 
-        private void DropZone_DragOver(object sender, DragEventArgs e)
+        private void AmrInstallDropZone_DragOver(object sender, DragEventArgs e)
         {
             e.Handled = true;
             e.Effects = DragDropEffects.None;
@@ -267,24 +267,24 @@ namespace YoudaoPenToolbox
                 if (files != null && files.Any(f => f.EndsWith(".amr", System.StringComparison.OrdinalIgnoreCase)))
                 {
                     e.Effects = DragDropEffects.Copy;
-                    DropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+                    AmrInstallDropZone.BorderBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
                     return;
                 }
             }
 
-            DropZone.BorderBrush = GetPrimaryBorderBrush();
+            AmrInstallDropZone.BorderBrush = GetPrimaryBorderBrush();
         }
 
-        private void DropZone_DragLeave(object sender, DragEventArgs e)
+        private void AmrInstallDropZone_DragLeave(object sender, DragEventArgs e)
         {
             e.Handled = true;
-            ResetDropZoneVisual();
+            ResetAmrInstallDropZoneVisual();
         }
 
-        private void DropZone_Drop(object sender, DragEventArgs e)
+        private void AmrInstallDropZone_Drop(object sender, DragEventArgs e)
         {
             e.Handled = true;
-            ResetDropZoneVisual();
+            ResetAmrInstallDropZoneVisual();
 
             if (!e.Data.GetDataPresent(DataFormats.FileDrop))
             {
@@ -304,15 +304,15 @@ namespace YoudaoPenToolbox
             }));
         }
 
-        private void DropZone_GiveFeedback(object sender, GiveFeedbackEventArgs e)
+        private void AmrInstallDropZone_GiveFeedback(object sender, GiveFeedbackEventArgs e)
         {
             e.UseDefaultCursors = true;
             e.Handled = true;
         }
 
-        private void ResetDropZoneVisual()
+        private void ResetAmrInstallDropZoneVisual()
         {
-            DropZone.BorderBrush = GetPrimaryBorderBrush();
+            AmrInstallDropZone.BorderBrush = GetPrimaryBorderBrush();
             if (Mouse.Captured != null)
             {
                 Mouse.Capture(null);

@@ -78,6 +78,8 @@ namespace YoudaoPenToolbox.ViewModels
         private BlockPartitionInfo _selectedBlockPartition;
         private string _partitionSummary = "连接设备后将自动加载分区列表";
         private string _selectedPartitionDetail = "";
+        private string _compatibilityPlatformSummary = "尚未运行兼容性检测";
+        private string _compatibilityReport = "";
         private string _partitionTransferText = "";
         private double _partitionTransferPercent;
         private List<BlockPartitionInfo> _allBlockPartitions = new List<BlockPartitionInfo>();
@@ -129,6 +131,8 @@ namespace YoudaoPenToolbox.ViewModels
             RefreshAppsCommand = new RelayCommand(async () => await RefreshAppsAsync(), () => SelectedDevice != null && !IsBusy);
             RefreshAppSizesCommand = new RelayCommand(async () => await RefreshAppSizesAsync(), () => SelectedDevice != null && !IsBusy);
             InstallDroppedFileCommand = new RelayCommand<string>(async path => await InstallAmrAsync(path), _ => SelectedDevice != null && !IsBusy);
+            BrowseInstallAmrCommand = new RelayCommand(BrowseInstallAmr, () => SelectedDevice != null && !IsBusy);
+            RunCompatibilityCheckCommand = new RelayCommand(async () => await RunCompatibilityCheckAsync(), () => SelectedDevice != null && !IsBusy);
             InstallLoliAppCommand = new RelayCommand(async () => await InstallLoliAppAsync(), () => SelectedDevice != null && !IsBusy);
             UninstallAppCommand = new RelayCommand(async () => await UninstallSelectedAppAsync(), () => SelectedApp != null && SelectedDevice != null && !IsBusy);
             StartAppCommand = new RelayCommand(async () => await StartSelectedAppAsync(), () => SelectedApp != null && !IsBusy);
@@ -517,12 +521,26 @@ namespace YoudaoPenToolbox.ViewModels
 
         public int SelectedRemoteFileCount => _selectedRemoteFiles.Count;
 
+        public string CompatibilityPlatformSummary
+        {
+            get => _compatibilityPlatformSummary;
+            private set => SetProperty(ref _compatibilityPlatformSummary, value);
+        }
+
+        public string CompatibilityReport
+        {
+            get => _compatibilityReport;
+            private set => SetProperty(ref _compatibilityReport, value);
+        }
+
         public RelayCommand RefreshDevicesCommand { get; }
         public RelayCommand<DeviceInfo> SelectDeviceCommand { get; }
         public RelayCommand ExecuteCommandCommand { get; }
         public RelayCommand RefreshAppsCommand { get; }
         public RelayCommand RefreshAppSizesCommand { get; }
         public RelayCommand<string> InstallDroppedFileCommand { get; }
+        public RelayCommand BrowseInstallAmrCommand { get; }
+        public RelayCommand RunCompatibilityCheckCommand { get; }
         public RelayCommand InstallLoliAppCommand { get; }
         public RelayCommand UninstallAppCommand { get; }
         public RelayCommand StartAppCommand { get; }
@@ -823,6 +841,7 @@ namespace YoudaoPenToolbox.ViewModels
                 ClearProcessSnapshot();
                 ClearRemoteFiles();
                 ClearPartitions();
+                ClearCompatibilityState();
                 return;
             }
 
@@ -842,6 +861,7 @@ namespace YoudaoPenToolbox.ViewModels
                 NeedsAdbUnlock = false;
                 _lastAuthWarningSerial = null;
                 StatusMessage = $"已选择 {SelectedDevice.DisplayName}";
+                ClearCompatibilityState();
             }
 
             UpdateAdbCommandPreview();
@@ -1210,7 +1230,7 @@ namespace YoudaoPenToolbox.ViewModels
                 $"名称: {SelectedApp.Name}  |  版本: {SelectedApp.Version}  |  类型: {SelectedApp.AppType}  |  占用: {SelectedApp.SizeDisplay}\r\n" +
                 $"AppId: {SelectedApp.AppId}  |  分类: {SelectedApp.Category}  |  卸载: {SelectedApp.UninstallDisplay}\r\n" +
                 (SelectedApp.IsProtectedSystemApp
-                    ? "说明: 受保护系统应用，卸载前将自动备份 AMR，可通过拖回 AMR 尝试找回。\r\n"
+                    ? "说明: 受保护系统应用，卸载前将自动备份 AMR，可拖至「APP 安装」页尝试找回。\r\n"
                     : string.Empty) +
                 $"包目录: {SelectedApp.PackageDir}\r\n" +
                 $"安装路径: {SelectedApp.InstallPath}";
@@ -1431,12 +1451,16 @@ namespace YoudaoPenToolbox.ViewModels
             IsBusy = true;
             try
             {
-                StatusMessage = "正在识别设备芯片平台...";
+                StatusMessage = "正在运行兼容性检测...";
                 var platform = await _loliInstallService.DetectPlatformAsync(SelectedDevice.Serial).ConfigureAwait(true);
+                ApplyCompatibilityResult(platform);
+
                 if (!platform.IsSupported)
                 {
                     AppMessageBox.Show(
-                        $"未能自动识别设备芯片类型，无法选择安装包。\n\n{platform.DetectionDetail}",
+                        "未能自动识别设备芯片类型，无法选择 Loli 安装包。\n\n" +
+                        $"{platform.DetectionDetail}\n\n" +
+                        "可将下方兼容性检测输出发给 AI 或群内询问。",
                         "无法安装 Loli",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
@@ -1450,6 +1474,7 @@ namespace YoudaoPenToolbox.ViewModels
                 var confirm = AppMessageBox.Show(
                     $"设备：{SelectedDevice.DisplayName}\n" +
                     $"平台：{platform.PlatformLabel}\n" +
+                    $"分支：{platform.RepositorySubPath}\n" +
                     $"版本：v{release.VersionText}\n" +
                     $"文件：{release.FileName}\n\n" +
                     "将从 Gitee 下载并安装，是否继续？",
@@ -1464,10 +1489,13 @@ namespace YoudaoPenToolbox.ViewModels
                 }
 
                 StatusMessage = $"正在下载 {release.FileName}...";
-                var localPath = await _loliInstallService.DownloadReleaseAsync(release).ConfigureAwait(true);
-
-                IsBusy = false;
-                await InstallAmrAsync(localPath).ConfigureAwait(true);
+                var progress = new Progress<DownloadProgress>(p =>
+                {
+                    StatusMessage = FormatLoliDownloadStatus(release.FileName, p);
+                });
+                var localPath = await _loliInstallService.DownloadReleaseAsync(release, progress).ConfigureAwait(true);
+                StatusMessage = "下载完成，正在上传并安装...";
+                await InstallAmrAsync(localPath, skipConfirmation: true, manageBusyState: false).ConfigureAwait(true);
             }
             catch (Exception ex)
             {
@@ -1480,7 +1508,108 @@ namespace YoudaoPenToolbox.ViewModels
             }
         }
 
-        public async Task InstallAmrAsync(string localPath)
+        private static string FormatLoliDownloadStatus(string fileName, DownloadProgress progress)
+        {
+            if (progress == null)
+            {
+                return $"正在下载 {fileName}...";
+            }
+
+            if (progress.TotalBytes > 0)
+            {
+                var percent = progress.BytesReceived * 100.0 / progress.TotalBytes;
+                var receivedMb = progress.BytesReceived / 1024.0 / 1024.0;
+                var totalMb = progress.TotalBytes / 1024.0 / 1024.0;
+                return $"正在下载 {fileName} ({percent:0.#}% · {receivedMb:0.00}/{totalMb:0.00} MB)...";
+            }
+
+            if (progress.BytesReceived > 0)
+            {
+                var receivedMb = progress.BytesReceived / 1024.0 / 1024.0;
+                return $"正在下载 {fileName} ({receivedMb:0.00} MB)...";
+            }
+
+            return $"正在连接下载源 {fileName}...";
+        }
+
+        public async Task RunCompatibilityCheckAsync()
+        {
+            if (SelectedDevice == null)
+            {
+                return;
+            }
+
+            IsBusy = true;
+            try
+            {
+                StatusMessage = "正在运行兼容性检测...";
+                var platform = await _loliInstallService.DetectPlatformAsync(SelectedDevice.Serial).ConfigureAwait(true);
+                ApplyCompatibilityResult(platform);
+                StatusMessage = platform.IsSupported
+                    ? $"兼容性检测完成：{platform.PlatformLabel}"
+                    : "兼容性检测完成，但未能识别平台";
+            }
+            catch (Exception ex)
+            {
+                Growl.Error($"兼容性检测失败: {ex.Message}");
+                StatusMessage = ex.Message;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        private void BrowseInstallAmr()
+        {
+            if (SelectedDevice == null)
+            {
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "选择 AMR 小程序包",
+                Filter = "AMR 小程序包|*.amr",
+                Multiselect = false
+            };
+
+            if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.FileName))
+            {
+                _ = InstallAmrAsync(dlg.FileName);
+            }
+        }
+
+        private void ApplyCompatibilityResult(LoliPlatformInfo platform)
+        {
+            if (platform == null)
+            {
+                ClearCompatibilityState();
+                return;
+            }
+
+            CompatibilityReport = platform.CompatibilityReport ?? string.Empty;
+            if (platform.IsSupported)
+            {
+                CompatibilityPlatformSummary =
+                    $"已识别：{platform.PlatformLabel}\n安装分支：{platform.RepositorySubPath}\n{platform.DetectionDetail}";
+            }
+            else
+            {
+                CompatibilityPlatformSummary =
+                    $"未能识别平台\n{platform.DetectionDetail}\n\n请查看下方原始输出，或直接在群内报设备型号询问。";
+            }
+        }
+
+        private void ClearCompatibilityState()
+        {
+            CompatibilityPlatformSummary = SelectedDevice == null
+                ? "请先连接并选择设备"
+                : "尚未运行兼容性检测";
+            CompatibilityReport = string.Empty;
+        }
+
+        public async Task InstallAmrAsync(string localPath, bool skipConfirmation = false, bool manageBusyState = true)
         {
             if (SelectedDevice == null || string.IsNullOrWhiteSpace(localPath))
             {
@@ -1494,39 +1623,46 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            AmrPackageInfo packageInfo = null;
-            string installAppId = null;
-            try
+            if (!skipConfirmation)
             {
-                packageInfo = AmrPackageService.Parse(localPath);
-                installAppId = packageInfo?.AppId;
-                var dialog = new Views.InstallConfirmDialog(packageInfo, SelectedDevice.DisplayName)
+                AmrPackageInfo packageInfo = null;
+                try
                 {
-                    Owner = Application.Current.MainWindow
-                };
+                    packageInfo = AmrPackageService.Parse(localPath);
+                    var dialog = new Views.InstallConfirmDialog(packageInfo, SelectedDevice.DisplayName)
+                    {
+                        Owner = Application.Current.MainWindow
+                    };
 
-                if (dialog.ShowDialog() != true)
+                    Application.Current?.MainWindow?.Activate();
+                    if (dialog.ShowDialog() != true)
+                    {
+                        return;
+                    }
+                }
+                finally
                 {
-                    return;
+                    packageInfo?.Dispose();
                 }
             }
-            finally
+
+            if (manageBusyState)
             {
-                packageInfo?.Dispose();
+                IsBusy = true;
             }
 
-            IsBusy = true;
-            StatusMessage = "正在上传并安装...";
+            StatusMessage = $"正在上传 {fileName} 到设备...";
             try
             {
-                var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName(installAppId)}";
+                var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName()}";
                 var pushed = await _adbService.PushFileAsync(SelectedDevice.Serial, localPath, remotePath);
                 if (!pushed)
                 {
                     throw new InvalidOperationException("上传 AMR 文件到设备失败");
                 }
 
-                var result = await _cliService.ExecuteRawAsync(SelectedDevice.Serial, $"install {remotePath}");
+                StatusMessage = "正在设备安装 AMR，请勿断开...";
+                var result = await _cliService.ExecuteRawAsync(SelectedDevice.Serial, $"install {remotePath}", 300000);
                 var installResult = MiniAppCliResultParser.ParseInstall(result);
                 var formatted = MiniAppCliOutputFormatter.Format("install", result);
                 CommandOutput = $"[{DateTime.Now:HH:mm:ss}] install {fileName}\r\n{formatted}\r\n\r\n{CommandOutput}";
@@ -1565,7 +1701,10 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
-                IsBusy = false;
+                if (manageBusyState)
+                {
+                    IsBusy = false;
+                }
             }
         }
 
@@ -1685,7 +1824,7 @@ namespace YoudaoPenToolbox.ViewModels
                 $"「{app.Name}」属于受保护的系统应用，卸载可能导致功能异常（如录音、查词、桌面等）。\n\n" +
                 $"若您执意卸载：\n" +
                 $"· 将自动备份 AMR 到：\n  {backupDir}\n" +
-                $"· 可通过将 AMR 拖回工具箱底部安装区尝试找回应用\n\n" +
+                $"· 可通过将 AMR 拖至「APP 安装」页尝试找回应用\n\n" +
                 "是否继续？",
                 "系统应用 · 谨慎卸载",
                 MessageBoxButton.YesNo,
@@ -1704,7 +1843,7 @@ namespace YoudaoPenToolbox.ViewModels
             return
                 $"最后确认：卸载受保护系统应用 [{app.Name}]？\n\n" +
                 $"AMR 备份已保存：\n{backupPath}\n\n" +
-                "如需找回，请将此 .amr 文件拖回工具箱安装。";
+                "如需找回，请将此 .amr 文件拖至「APP 安装」页安装。";
         }
 
         private async Task<AppBackupResult> BackupAppInternalAsync(InstalledApp app, string localPath, string logPrefix)
@@ -1774,7 +1913,7 @@ namespace YoudaoPenToolbox.ViewModels
                     AppMessageBox.Show(
                         $"应用 [{app.Name}] 已执行卸载。\n\n" +
                         $"AMR 备份位置：\n{backupPath}\n\n" +
-                        "如需找回应用，请将此 .amr 文件拖回工具箱底部安装区进行安装。",
+                        "如需找回应用，请将此 .amr 文件拖至「APP 安装」页进行安装。",
                         "AMR 应用找回",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -1872,7 +2011,7 @@ namespace YoudaoPenToolbox.ViewModels
                     AppMessageBox.Show(
                         $"应用：{app.Name}\nAppId：{app.AppId}\n\n已保存到：\n{result.LocalAmrPath}\n\n" +
                         $"包内约 {result.FileCount} 个文件，大小 {AmrPackageInfo.FormatSize(result.ArchiveSizeBytes)}。\n" +
-                        "可将此 .amr 拖回工具箱安装。",
+                        "可将此 .amr 拖至「APP 安装」页安装。",
                         "备份成功",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
