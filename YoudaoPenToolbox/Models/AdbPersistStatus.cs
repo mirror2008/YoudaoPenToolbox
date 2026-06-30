@@ -11,4 +11,20 @@ namespace YoudaoPenToolbox.Models
 
         public bool IsPersistEnabled => SkipReHookInstalled;
     }
+
+    public enum AdbPersistEnsureAction
+    {
+        SkippedShellLocked,
+        AlreadyEnabled,
+        Configured,
+        Failed
+    }
+
+    public sealed class AdbPersistEnsureResult
+    {
+        public AdbPersistEnsureAction Action { get; set; }
+        public AdbPersistStatus Status { get; set; }
+        public string Log { get; set; }
+        public string ErrorMessage { get; set; }
+    }
 }

@@ -15,6 +15,11 @@ namespace YoudaoPenToolbox.Services
             _adbService = adbService;
         }
 
+        public Task<LoliPlatformInfo> BuildFromUserChoiceAsync(string serial, bool useRockchip)
+        {
+            return BuildPlatformInfoAsync(serial, useRockchip, userSelected: true);
+        }
+
         public async Task<LoliPlatformInfo> DetectLoliPlatformAsync(string serial)
         {
             var probe = await CollectCompatibilityProbeAsync(serial).ConfigureAwait(false);
@@ -22,7 +27,58 @@ namespace YoudaoPenToolbox.Services
             var hostname = await _adbService.ShellAsync(serial, "hostname 2>/dev/null").ConfigureAwait(false);
 
             var compatible = probe.DeviceTreeCompatible ?? string.Empty;
-            var combined = string.Join(" ", new[]
+            var combined = BuildCombinedProbeText(probe, compatible, model, hostname);
+
+            if (ShouldUseRockchipBranch(probe, combined))
+            {
+                return CreatePlatformInfo(probe, combined, model, hostname, useRockchip: true, userSelected: false);
+            }
+
+            if (ShouldUseCviBranch(probe, combined))
+            {
+                return CreatePlatformInfo(probe, combined, model, hostname, useRockchip: false, userSelected: false);
+            }
+
+            if (ContainsSku(combined, "x7", "x7pro", "y02", "y05", "y07", "y08", "y09", "y11", "rk3562", "rk3566", "rk3568", "rk35"))
+            {
+                return CreatePlatformInfo(probe, combined, model, hostname, useRockchip: true, userSelected: false, guessed: true);
+            }
+
+            if (ContainsSku(combined, "a6", "a7"))
+            {
+                return CreateCviPlatformInfo(probe, combined, model, hostname, "app/cvi-ffmpeg/a6-a7", "A6/A7", guessed: true);
+            }
+
+            if (ContainsSku(combined, "s7"))
+            {
+                return CreateCviPlatformInfo(probe, combined, model, hostname, "app/cvi-ffmpeg/x5-s6-s7", "X5/S6/S7", guessed: true);
+            }
+
+            if (ContainsSku(combined, "x5", "s6"))
+            {
+                return CreateCviPlatformInfo(probe, combined, model, hostname, "app/cvi-ffmpeg/x5-s6", "X5/S6", guessed: true);
+            }
+
+            return CreateUnsupportedPlatformInfo(probe, combined, model, hostname);
+        }
+
+        private async Task<LoliPlatformInfo> BuildPlatformInfoAsync(string serial, bool useRockchip, bool userSelected)
+        {
+            var probe = await CollectCompatibilityProbeAsync(serial).ConfigureAwait(false);
+            var model = await _adbService.ShellAsync(serial, "cat /proc/device-tree/model 2>/dev/null").ConfigureAwait(false);
+            var hostname = await _adbService.ShellAsync(serial, "hostname 2>/dev/null").ConfigureAwait(false);
+            var compatible = probe.DeviceTreeCompatible ?? string.Empty;
+            var combined = BuildCombinedProbeText(probe, compatible, model, hostname);
+            return CreatePlatformInfo(probe, combined, model, hostname, useRockchip, userSelected);
+        }
+
+        private static string BuildCombinedProbeText(
+            DeviceCompatibilityReport probe,
+            string compatible,
+            string model,
+            string hostname)
+        {
+            return string.Join(" ", new[]
                 {
                     probe.UnameMachine,
                     compatible,
@@ -32,7 +88,106 @@ namespace YoudaoPenToolbox.Services
                     probe.DevListing
                 })
                 .ToLowerInvariant();
+        }
 
+        private static LoliPlatformInfo CreatePlatformInfo(
+            DeviceCompatibilityReport probe,
+            string combined,
+            string model,
+            string hostname,
+            bool useRockchip,
+            bool userSelected,
+            bool guessed = false)
+        {
+            if (useRockchip)
+            {
+                var suffix = userSelected ? "用户选择" : guessed ? "型号推测" : string.Empty;
+                var label = string.IsNullOrEmpty(suffix)
+                    ? "RK 芯片 · GStreamer (rk-gst)"
+                    : $"RK 芯片 · GStreamer (rk-gst，{suffix})";
+                return CreateRockchipPlatformInfo(probe, combined, model, hostname, label);
+            }
+
+            var subPath = DetectCviSubPath(combined, model, hostname);
+            var cviSuffix = userSelected ? "用户选择" : guessed ? "型号推测" : string.Empty;
+            var cviLabel = string.IsNullOrEmpty(cviSuffix)
+                ? "CVI 芯片 · FFmpeg (cvi-ffmpeg) · " + subPath.FolderLabel
+                : $"CVI 芯片 · FFmpeg (cvi-ffmpeg/{subPath.FolderLabel}，{cviSuffix})";
+            return CreateCviPlatformInfo(probe, combined, model, hostname, subPath.Path, subPath.FolderLabel, cviLabel);
+        }
+
+        private static LoliPlatformInfo CreateRockchipPlatformInfo(
+            DeviceCompatibilityReport probe,
+            string combined,
+            string model,
+            string hostname,
+            string platformLabel)
+        {
+            return new LoliPlatformInfo
+            {
+                PlatformType = "rk",
+                PlatformLabel = platformLabel,
+                RepositorySubPath = "app/rk-gst",
+                DetectionDetail = BuildDetectionDetail(probe, model, hostname),
+                CompatibilityReport = probe.FormatForDisplay(),
+                Probe = probe
+            };
+        }
+
+        private static LoliPlatformInfo CreateCviPlatformInfo(
+            DeviceCompatibilityReport probe,
+            string combined,
+            string model,
+            string hostname,
+            string repositorySubPath,
+            string folderLabel,
+            bool guessed = false)
+        {
+            var label = guessed
+                ? $"CVI 芯片 · FFmpeg (cvi-ffmpeg/{folderLabel}，型号推测)"
+                : "CVI 芯片 · FFmpeg (cvi-ffmpeg) · " + folderLabel;
+            return CreateCviPlatformInfo(probe, combined, model, hostname, repositorySubPath, folderLabel, label);
+        }
+
+        private static LoliPlatformInfo CreateCviPlatformInfo(
+            DeviceCompatibilityReport probe,
+            string combined,
+            string model,
+            string hostname,
+            string repositorySubPath,
+            string folderLabel,
+            string platformLabel)
+        {
+            return new LoliPlatformInfo
+            {
+                PlatformType = "cvi",
+                PlatformLabel = platformLabel,
+                RepositorySubPath = repositorySubPath,
+                DetectionDetail = BuildDetectionDetail(probe, model, hostname),
+                CompatibilityReport = probe.FormatForDisplay(),
+                Probe = probe
+            };
+        }
+
+        private static LoliPlatformInfo CreateUnsupportedPlatformInfo(
+            DeviceCompatibilityReport probe,
+            string combined,
+            string model,
+            string hostname)
+        {
+            return new LoliPlatformInfo
+            {
+                PlatformType = "unknown",
+                PlatformLabel = "未能识别芯片平台",
+                RepositorySubPath = null,
+                DetectionDetail = BuildDetectionDetail(probe, model, hostname),
+                CompatibilityReport = probe.FormatForDisplay(),
+                Probe = probe
+            };
+        }
+
+        private static string BuildDetectionDetail(DeviceCompatibilityReport probe, string model, string hostname)
+        {
             var detailBuilder = new StringBuilder();
             detailBuilder.Append("多媒体框架: ");
             if (probe.GstLaunchAvailable)
@@ -52,98 +207,7 @@ namespace YoudaoPenToolbox.Services
             detailBuilder.Append(probe.MiniappCliAvailable ? "可用" : "不可用或未找到");
             detailBuilder.Append(" | model=").Append(model?.Trim());
             detailBuilder.Append(" | host=").Append(hostname?.Trim());
-
-            var detectionDetail = detailBuilder.ToString();
-            var compatibilityReport = probe.FormatForDisplay();
-
-            if (ShouldUseRockchipBranch(probe, combined))
-            {
-                return new LoliPlatformInfo
-                {
-                    PlatformType = "rk",
-                    PlatformLabel = "RK 芯片 · GStreamer (rk-gst)",
-                    RepositorySubPath = "app/rk-gst",
-                    DetectionDetail = detectionDetail,
-                    CompatibilityReport = compatibilityReport,
-                    Probe = probe
-                };
-            }
-
-            if (ShouldUseCviBranch(probe, combined))
-            {
-                var subPath = DetectCviSubPath(combined, model, hostname);
-                return new LoliPlatformInfo
-                {
-                    PlatformType = "cvi",
-                    PlatformLabel = "CVI 芯片 · FFmpeg (cvi-ffmpeg) · " + subPath.FolderLabel,
-                    RepositorySubPath = subPath.Path,
-                    DetectionDetail = detectionDetail,
-                    CompatibilityReport = compatibilityReport,
-                    Probe = probe
-                };
-            }
-
-            if (ContainsSku(combined, "x7", "x7pro", "y02", "y05", "y07", "y08", "y09", "y11", "rk3562", "rk3566", "rk3568", "rk35"))
-            {
-                return new LoliPlatformInfo
-                {
-                    PlatformType = "rk",
-                    PlatformLabel = "RK 芯片 · GStreamer (rk-gst，型号推测)",
-                    RepositorySubPath = "app/rk-gst",
-                    DetectionDetail = detectionDetail,
-                    CompatibilityReport = compatibilityReport,
-                    Probe = probe
-                };
-            }
-
-            if (ContainsSku(combined, "a6", "a7"))
-            {
-                return new LoliPlatformInfo
-                {
-                    PlatformType = "cvi",
-                    PlatformLabel = "CVI 芯片 · FFmpeg (cvi-ffmpeg/a6-a7，型号推测)",
-                    RepositorySubPath = "app/cvi-ffmpeg/a6-a7",
-                    DetectionDetail = detectionDetail,
-                    CompatibilityReport = compatibilityReport,
-                    Probe = probe
-                };
-            }
-
-            if (ContainsSku(combined, "s7"))
-            {
-                return new LoliPlatformInfo
-                {
-                    PlatformType = "cvi",
-                    PlatformLabel = "CVI 芯片 · FFmpeg (cvi-ffmpeg/x5-s6-s7，型号推测)",
-                    RepositorySubPath = "app/cvi-ffmpeg/x5-s6-s7",
-                    DetectionDetail = detectionDetail,
-                    CompatibilityReport = compatibilityReport,
-                    Probe = probe
-                };
-            }
-
-            if (ContainsSku(combined, "x5", "s6"))
-            {
-                return new LoliPlatformInfo
-                {
-                    PlatformType = "cvi",
-                    PlatformLabel = "CVI 芯片 · FFmpeg (cvi-ffmpeg/x5-s6，型号推测)",
-                    RepositorySubPath = "app/cvi-ffmpeg/x5-s6",
-                    DetectionDetail = detectionDetail,
-                    CompatibilityReport = compatibilityReport,
-                    Probe = probe
-                };
-            }
-
-            return new LoliPlatformInfo
-            {
-                PlatformType = "unknown",
-                PlatformLabel = "未能识别芯片平台",
-                RepositorySubPath = null,
-                DetectionDetail = detectionDetail,
-                CompatibilityReport = compatibilityReport,
-                Probe = probe
-            };
+            return detailBuilder.ToString();
         }
 
         public async Task<DeviceCompatibilityReport> CollectCompatibilityProbeAsync(string serial)

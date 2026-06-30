@@ -16,6 +16,9 @@ namespace YoudaoPenToolbox.Services
 
     public static class RemotePathHelper
     {
+        /// <summary>有道笔用户可写数据盘，文件管理器默认打开此目录。</summary>
+        public const string DefaultUserDataPath = "/userdisk";
+
         public static string Normalize(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -100,9 +103,148 @@ namespace YoudaoPenToolbox.Services
 
         public async Task<bool> DirectoryExistsAsync(string serial, string path)
         {
-            var quotedPath = RemotePathHelper.ShellQuote(RemotePathHelper.Normalize(path));
-            var output = await _adbService.ShellAsync(serial, $"test -d {quotedPath} && echo OK || echo NO").ConfigureAwait(false);
-            return output != null && output.IndexOf("OK", StringComparison.OrdinalIgnoreCase) >= 0;
+            return await IsDirectoryPathAsync(serial, path).ConfigureAwait(false);
+        }
+
+        public async Task<bool> EntryExistsAsync(string serial, string path)
+        {
+            var normalized = RemotePathHelper.Normalize(path);
+            var quotedPath = RemotePathHelper.ShellQuote(normalized);
+            var lsOutput = await _adbService.ShellAsync(serial, $"ls -ld {quotedPath} 2>&1").ConfigureAwait(false);
+            return !IsLsAccessError(lsOutput);
+        }
+
+        public async Task<bool> FileExistsAtPathAsync(string serial, string path)
+        {
+            var normalized = RemotePathHelper.Normalize(path);
+            var quotedPath = RemotePathHelper.ShellQuote(normalized);
+            var lsOutput = await _adbService.ShellAsync(serial, $"ls -ld {quotedPath} 2>&1").ConfigureAwait(false);
+            if (IsLsAccessError(lsOutput))
+            {
+                return false;
+            }
+
+            return GetLsPermissionMarker(lsOutput) == '-';
+        }
+
+        private async Task<bool> IsDirectoryPathAsync(string serial, string path)
+        {
+            var normalized = RemotePathHelper.Normalize(path);
+            var quotedPath = RemotePathHelper.ShellQuote(normalized);
+            var lsOutput = await _adbService.ShellAsync(serial, $"ls -ld {quotedPath} 2>&1").ConfigureAwait(false);
+            if (!IsLsAccessError(lsOutput))
+            {
+                return GetLsPermissionMarker(lsOutput) == 'd';
+            }
+
+            var testOutput = await _adbService.ShellScriptAsync(serial, $"test -d {quotedPath} && echo __DIR_OK__")
+                .ConfigureAwait(false);
+            return testOutput != null && testOutput.IndexOf("__DIR_OK__", StringComparison.Ordinal) >= 0;
+        }
+
+        private static char? GetLsPermissionMarker(string lsOutput)
+        {
+            if (string.IsNullOrWhiteSpace(lsOutput))
+            {
+                return null;
+            }
+
+            var line = lsOutput.Trim();
+            var spaceIndex = line.IndexOf(' ');
+            var perm = spaceIndex > 0 ? line.Substring(0, spaceIndex) : line;
+            return perm.Length > 0 ? perm[0] : (char?)null;
+        }
+
+        private async Task<bool> ListingContainsDirectoryAsync(string serial, string parentPath, string entryName)
+        {
+            var listing = await ListDirectoryAsync(serial, parentPath).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(listing.ErrorMessage))
+            {
+                return false;
+            }
+
+            foreach (var item in listing.Items)
+            {
+                if (!string.Equals(GetEntryFileName(item), entryName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                return item.IsDirectory || item.IsSymlink;
+            }
+
+            return false;
+        }
+
+        private async Task EnsureParentAccessibleAsync(string serial, string parentPath)
+        {
+            var listing = await ListDirectoryAsync(serial, parentPath).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(listing.ErrorMessage))
+            {
+                var detail = listing.ErrorMessage.Trim();
+                throw new InvalidOperationException(
+                    string.IsNullOrWhiteSpace(detail)
+                        ? $"父目录不存在或无法访问: {parentPath}"
+                        : $"父目录不存在或无法访问: {parentPath}\n{detail}");
+            }
+        }
+
+        private static bool IsLsAccessError(string output)
+        {
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return true;
+            }
+
+            return output.IndexOf("No such file", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("cannot access", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public async Task<bool> IsDirectoryWritableAsync(string serial, string directoryPath)
+        {
+            var parent = RemotePathHelper.Normalize(directoryPath);
+            var probeName = $".ypt_write_probe_{Guid.NewGuid():N}";
+            var probePath = RemotePathHelper.Combine(parent, probeName);
+            var quotedProbe = RemotePathHelper.ShellQuote(probePath);
+
+            var touchOutput = await _adbService.ShellAsync(serial, $"touch {quotedProbe} 2>&1").ConfigureAwait(false);
+            if (IsWriteDeniedOutput(touchOutput))
+            {
+                return false;
+            }
+
+            if (await EntryExistsAsync(serial, probePath).ConfigureAwait(false))
+            {
+                await _adbService.ShellAsync(serial, $"rm -f {quotedProbe} 2>&1").ConfigureAwait(false);
+                return true;
+            }
+
+            var mkdirOutput = await _adbService.ShellAsync(serial, $"mkdir {quotedProbe} 2>&1").ConfigureAwait(false);
+            if (IsWriteDeniedOutput(mkdirOutput))
+            {
+                return false;
+            }
+
+            if (!await DirectoryExistsAsync(serial, probePath).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            await _adbService.ShellAsync(serial, $"rmdir {quotedProbe} 2>&1").ConfigureAwait(false);
+            return true;
+        }
+
+        private static bool IsWriteDeniedOutput(string output)
+        {
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return false;
+            }
+
+            return output.IndexOf("Read-only file system", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("Read-only", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("Permission denied", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public async Task DeleteAsync(string serial, RemoteFileItem item)
@@ -135,20 +277,13 @@ namespace YoudaoPenToolbox.Services
                 return listing;
             }
 
-            if (output.IndexOf("No such file", StringComparison.OrdinalIgnoreCase) >= 0
-                || output.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0
-                || output.IndexOf("cannot access", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                listing.ErrorMessage = output.Trim();
-                return listing;
-            }
-
             var items = new List<RemoteFileItem>();
             var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var rawLine in lines)
             {
                 var line = rawLine.TrimEnd();
-                if (line.StartsWith("total ", StringComparison.OrdinalIgnoreCase))
+                if (line.StartsWith("total ", StringComparison.OrdinalIgnoreCase)
+                    || line.StartsWith("ls:", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -162,6 +297,12 @@ namespace YoudaoPenToolbox.Services
                 items.Add(item);
             }
 
+            if (items.Count == 0 && LooksLikeListingFailure(output))
+            {
+                listing.ErrorMessage = output.Trim();
+                return listing;
+            }
+
             listing.Items = items
                 .OrderByDescending(i => i.IsDirectory)
                 .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
@@ -169,12 +310,19 @@ namespace YoudaoPenToolbox.Services
             return listing;
         }
 
+        private static bool LooksLikeListingFailure(string output)
+        {
+            return output.IndexOf("No such file", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("not found", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("cannot access", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private static RemoteFileItem ParseLine(string line, string currentPath)
         {
             var match = LsLineRegex.Match(line);
             if (!match.Success)
             {
-                return null;
+                return ParseLineFallback(line, currentPath);
             }
 
             var permissions = match.Groups["perm"].Value;
@@ -210,6 +358,38 @@ namespace YoudaoPenToolbox.Services
                 Permissions = permissions,
                 ModifiedDisplay = match.Groups["date"].Value.Trim(),
                 SymlinkTarget = symlinkTarget
+            };
+        }
+
+        private static RemoteFileItem ParseLineFallback(string line, string currentPath)
+        {
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("ls:", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var trimmed = line.Trim();
+            var arrowIndex = trimmed.IndexOf(" -> ", StringComparison.Ordinal);
+            var entryName = arrowIndex >= 0 ? trimmed.Substring(0, arrowIndex).Trim() : trimmed;
+            if (entryName == "." || entryName == "..")
+            {
+                return null;
+            }
+
+            var isSymlink = arrowIndex >= 0;
+            var isDirectory = trimmed.StartsWith("d", StringComparison.Ordinal) || isSymlink;
+
+            return new RemoteFileItem
+            {
+                Name = entryName,
+                FullPath = RemotePathHelper.Combine(currentPath, entryName),
+                IsDirectory = isDirectory,
+                IsSymlink = isSymlink,
+                SizeBytes = 0,
+                SizeDisplay = FormatSize(isDirectory, isSymlink, 0),
+                Permissions = isDirectory ? "d?????????" : "-?????????",
+                ModifiedDisplay = string.Empty,
+                SymlinkTarget = isSymlink ? trimmed.Substring(arrowIndex + 4).Trim() : null
             };
         }
 

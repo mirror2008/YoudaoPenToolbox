@@ -92,6 +92,7 @@
     <Compile Include="Helpers\WindowChromeHelper.cs" />
     <Compile Include="Helpers\WindowLayoutHelper.cs" />
     <Compile Include="Helpers\ViewModelBase.cs" />
+    <Compile Include="Helpers\ScreenMirrorCoordinateHelper.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Converters\BoolToYesNoConverter.cs" />
     <Page Include="Views\AppMessageBoxWindow.xaml">
@@ -122,6 +123,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\LoliPlatformChoiceDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\RemoteFileViewerWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -147,6 +152,9 @@
     <Compile Include="Views\TextInputDialog.xaml.cs">
       <DependentUpon>TextInputDialog.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\LoliPlatformChoiceDialog.xaml.cs">
+      <DependentUpon>LoliPlatformChoiceDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\RemoteFileViewerWindow.xaml.cs">
       <DependentUpon>RemoteFileViewerWindow.xaml</DependentUpon>
     </Compile>
@@ -159,6 +167,7 @@
     <Compile Include="Models\MiniAppCommand.cs" />
     <Compile Include="Models\DeviceCompatibilityReport.cs" />
     <Compile Include="Models\LoliPlatformInfo.cs" />
+    <Compile Include="Models\ScreenMirrorDisplayInfo.cs" />
     <Compile Include="Models\AdbPersistStatus.cs" />
     <Compile Include="Models\ProcessInfo.cs" />
     <Compile Include="Models\RemoteFileItem.cs" />
@@ -188,6 +197,8 @@
     <Compile Include="Services\MiniAppCliResultParser.cs" />
     <Compile Include="Services\MiniAppCliOutputFormatter.cs" />
     <Compile Include="Services\MiniAppCliService.cs" />
+    <Compile Include="Services\ScreenMirrorService.cs" />
+    <Compile Include="Services\DeviceRemoteInputService.cs" />
     <Compile Include="Services\PartitionService.cs" />
     <Compile Include="Services\PartitionBackupService.cs" />
     <Compile Include="Services\PartitionMountService.cs" />

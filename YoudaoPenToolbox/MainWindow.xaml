@@ -508,11 +508,15 @@
 
                                 <TextBlock Text="一键安装 Loli" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,8"/>
                                 <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12" LineHeight="20">
-                                    <Run Text="兼容性检测会执行 uname -m、device-tree/compatible、/usr/bin、/dev、gst-launch-1.0、miniapp_cli 等指令，并据此选择安装分支："/>
+                                    <Run Text="点击「一键安装 Loli」后，请手动选择芯片架构："/>
                                     <LineBreak/>
-                                    <Run Text="· rk-gst/ — RK 系列，GStreamer（已确认 X7、X7Pro）"/>
+                                    <Run Text="· RK 芯片 — rk-gst/ 分支，GStreamer（如 X7、X7Pro、Y02 等）"/>
                                     <LineBreak/>
-                                    <Run Text="· cvi-ffmpeg/ — CVI 系列，FFmpeg"/>
+                                    <Run Text="· CVI 芯片 — cvi-ffmpeg/ 分支，FFmpeg（如 A6、A7、X5、S6、S7 等）"/>
+                                    <LineBreak/>
+                                    <Run Text="安装完成后，请在词典笔上打开「计算器」，输入 "/>
+                                    <Run Text="1999" FontWeight="SemiBold"/>
+                                    <Run Text=" 进入桌面。"/>
                                 </TextBlock>
 
                                 <WrapPanel Margin="0,0,0,12">
@@ -521,7 +525,7 @@
                                     <Button Content="一键安装 Loli" Command="{Binding InstallLoliAppCommand}"
                                             Style="{StaticResource ButtonPrimary}"
                                             Margin="0,0,8,8" Width="140" Height="36"
-                                            ToolTip="先运行兼容性检测识别分支，再从 Gitee 下载最新 Loli 并安装"/>
+                                            ToolTip="选择 RK 或 CVI 架构，从 Gitee 下载最新 Loli 并安装"/>
                                 </WrapPanel>
 
                                 <Border Style="{StaticResource DetailPanel}" Margin="0,0,0,12">
@@ -641,6 +645,9 @@
                         <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <TextBlock Text="ADB 持久化" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <TextBlock Text="连接设备并已解锁 ADB 时，若未配置持久化将自动配置。"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
                                 <TextBlock Text="{Binding AdbPersistSummary}" TextWrapping="Wrap" Margin="0,0,0,8"
                                            Foreground="{DynamicResource PrimaryTextBrush}"/>
                                 <WrapPanel Margin="0,0,0,16">
@@ -684,6 +691,63 @@
                                 </WrapPanel>
                             </StackPanel>
                         </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="投屏">
+                        <Grid Margin="0,4,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*" MinHeight="200"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,12" LineHeight="20"
+                                       Foreground="{DynamicResource SecondaryTextBrush}">
+                                <Run Text="通过 miniapp_cli capture 实时预览设备画面（约 2–3 FPS）。"/>
+                                <LineBreak/>
+                                <Run Text="预览区支持点击/滑动远程操控；Home / Back 使用 hal-key 与 send_event。"/>
+                            </TextBlock>
+
+                            <DockPanel Grid.Row="1" Margin="0,0,0,12">
+                                <WrapPanel DockPanel.Dock="Left">
+                                    <Button Content="开始投屏" Command="{Binding StartScreenMirrorCommand}"
+                                            Style="{StaticResource ButtonPrimary}"
+                                            Width="120" Height="36" Margin="0,0,8,8"/>
+                                    <Button Content="停止投屏" Command="{Binding StopScreenMirrorCommand}"
+                                            Width="100" Height="36" Margin="0,0,8,8"/>
+                                    <Button Content="Home" Command="{Binding MirrorInjectHomeCommand}"
+                                            Width="88" Height="36" Margin="0,0,8,8"
+                                            ToolTip="hal-key 1（系统 Home）"/>
+                                    <Button Content="Back" Command="{Binding MirrorInjectBackCommand}"
+                                            Width="88" Height="36" Margin="0,0,8,8"
+                                            ToolTip="send_event menu（返回/菜单键）"/>
+                                </WrapPanel>
+                                <TextBlock VerticalAlignment="Center" HorizontalAlignment="Right"
+                                           Text="{Binding ScreenMirrorStatsText}"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </DockPanel>
+
+                            <Border Grid.Row="2" Style="{StaticResource DetailPanel}"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Padding="12" MinWidth="320">
+                                <Grid>
+                                    <TextBlock Text="点击「开始投屏」查看设备画面"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"
+                                               Visibility="{Binding IsScreenMirroring, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}"/>
+                                    <Image x:Name="ScreenMirrorImage"
+                                           Source="{Binding ScreenMirrorFrame}"
+                                           Stretch="Uniform"
+                                           MaxWidth="936" MaxHeight="400"
+                                           RenderOptions.BitmapScalingMode="NearestNeighbor"
+                                           Cursor="Hand"
+                                           IsHitTestVisible="{Binding IsScreenMirroring}"
+                                           MouseLeftButtonDown="ScreenMirrorImage_MouseLeftButtonDown"
+                                           MouseLeftButtonUp="ScreenMirrorImage_MouseLeftButtonUp"
+                                           LostMouseCapture="ScreenMirrorImage_LostMouseCapture"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
                     </TabItem>
 
                     <TabItem Header="任务管理器">
@@ -785,7 +849,8 @@
                                       HeadersVisibility="Column" CanUserAddRows="False"
                                       CanUserSortColumns="True" GridLinesVisibility="Horizontal"
                                       SelectionUnit="FullRow" SelectionMode="Extended"
-                                      VirtualizingPanel.IsVirtualizing="True"
+                                      EnableRowVirtualization="False"
+                                      VirtualizingPanel.IsVirtualizing="False"
                                       MouseDoubleClick="RemoteFilesDataGrid_MouseDoubleClick"
                                       SelectionChanged="RemoteFilesDataGrid_SelectionChanged"
                                       PreviewKeyDown="RemoteFilesDataGrid_PreviewKeyDown"
@@ -838,7 +903,9 @@
                                 <StackPanel>
                                     <TextBlock Text="ADB 破解" FontSize="22" FontWeight="Bold" Margin="0,0,0,12"/>
                                     <TextBlock TextWrapping="Wrap" FontSize="14" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,16">
-                                        <Run Text="词典笔若未解锁 ADB，需通过 PenNewInject 付费解锁后才能使用本工具箱的完整功能。"/>
+                                        <Run Text="词典笔若未解锁 ADB，请前往 "/>
+                                        <Hyperlink NavigateUri="https://afdian.com/a/Mirror_CN" RequestNavigate="AdbUnlockLink_RequestNavigate">爱发电 · Mirror_CN</Hyperlink>
+                                        <Run Text=" 自助获取 KEY，再通过 PenNewInject 解锁后使用完整功能。"/>
                                     </TextBlock>
                                     <Border Padding="12,10" CornerRadius="8" Margin="0,0,0,20"
                                             Background="{DynamicResource ThirdlyRegionBrush}"

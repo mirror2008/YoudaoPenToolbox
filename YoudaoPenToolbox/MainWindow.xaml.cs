@@ -22,6 +22,8 @@ namespace YoudaoPenToolbox
         private readonly bool _skipEntranceAnimation;
         private bool _applicationInitialized;
         private bool _isAdjustingAspect;
+        private Point? _mirrorPointerStart;
+        private bool _mirrorPointerActive;
 
         public MainWindow(bool skipEntranceAnimation = false)
         {
@@ -30,6 +32,7 @@ namespace YoudaoPenToolbox
             WindowChromeHelper.Attach(this, OnWindowSizeMoveChanged);
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
+            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             Loaded += MainWindow_Loaded;
             Closed += MainWindow_Closed;
             SizeChanged += MainWindow_SizeChanged;
@@ -173,6 +176,14 @@ namespace YoudaoPenToolbox
             if (tab.Header?.ToString() == "刷机")
             {
                 await _viewModel.EnsurePartitionsLoadedAsync();
+            }
+        }
+
+        private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.SelectedRemoteFile) && _viewModel.SelectedRemoteFile != null)
+            {
+                RemoteFilesDataGrid?.ScrollIntoView(_viewModel.SelectedRemoteFile);
             }
         }
 
@@ -488,11 +499,20 @@ namespace YoudaoPenToolbox
             }
 
             var remotePath = $"/tmp/capturefb_{System.DateTime.Now.Ticks}.png";
-            var cli = new Services.MiniAppCliService(new Services.AdbService { AdbPath = _viewModel.AdbPath });
-            var result = await cli.ExecuteRawAsync(_viewModel.SelectedDevice.Serial, $"captureFB {remotePath}");
-            var adb = new Services.AdbService { AdbPath = _viewModel.AdbPath };
-            await adb.PullFileAsync(_viewModel.SelectedDevice.Serial, remotePath, dlg.FileName);
-            _viewModel.CommandOutput = $"[{System.DateTime.Now:HH:mm:ss}] captureFB\r\n{result}\r\n保存至: {dlg.FileName}\r\n\r\n{_viewModel.CommandOutput}";
+            var serial = _viewModel.SelectedDevice.Serial;
+            try
+            {
+                var cli = new Services.MiniAppCliService(new Services.AdbService { AdbPath = _viewModel.AdbPath });
+                var result = await cli.ExecuteRawAsync(serial, $"captureFB {remotePath}");
+                var adb = new Services.AdbService { AdbPath = _viewModel.AdbPath };
+                await adb.PullFileAsync(serial, remotePath, dlg.FileName);
+                _viewModel.CommandOutput = $"[{System.DateTime.Now:HH:mm:ss}] captureFB\r\n{result}\r\n保存至: {dlg.FileName}\r\n\r\n{_viewModel.CommandOutput}";
+            }
+            finally
+            {
+                var adb = new Services.AdbService { AdbPath = _viewModel.AdbPath };
+                await Services.AppBackupService.TryDeleteRemoteFileAsync(adb, serial, remotePath);
+            }
         }
 
         private async System.Threading.Tasks.Task ExecuteQuick(string command)
@@ -522,6 +542,54 @@ namespace YoudaoPenToolbox
             e.Handled = true;
             _viewModel.ExecuteAdbCommandCommand.Execute(null);
             await System.Threading.Tasks.Task.CompletedTask;
+        }
+
+        private void ScreenMirrorImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_viewModel.IsScreenMirroring || ScreenMirrorImage == null)
+            {
+                return;
+            }
+
+            _mirrorPointerStart = e.GetPosition(ScreenMirrorImage);
+            _mirrorPointerActive = true;
+            ScreenMirrorImage.CaptureMouse();
+            e.Handled = true;
+        }
+
+        private async void ScreenMirrorImage_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_mirrorPointerActive || !_mirrorPointerStart.HasValue || ScreenMirrorImage == null)
+            {
+                return;
+            }
+
+            _mirrorPointerActive = false;
+            ScreenMirrorImage.ReleaseMouseCapture();
+
+            var start = _mirrorPointerStart.Value;
+            _mirrorPointerStart = null;
+            var end = e.GetPosition(ScreenMirrorImage);
+            e.Handled = true;
+
+            await _viewModel.HandleMirrorPointerAsync(start, end, ScreenMirrorImage).ConfigureAwait(true);
+        }
+
+        private void ScreenMirrorImage_LostMouseCapture(object sender, MouseEventArgs e)
+        {
+            if (!_mirrorPointerActive)
+            {
+                return;
+            }
+
+            _mirrorPointerActive = false;
+            _mirrorPointerStart = null;
+        }
+
+        private void AdbUnlockLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
         }
     }
 }

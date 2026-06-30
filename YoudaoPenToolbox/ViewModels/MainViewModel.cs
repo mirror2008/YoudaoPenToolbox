@@ -6,6 +6,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Threading;
+using System.Windows.Media;
 using HandyControl.Controls;
 using YoudaoPenToolbox.Helpers;
 using YoudaoPenToolbox.Models;
@@ -29,7 +33,11 @@ namespace YoudaoPenToolbox.ViewModels
         private readonly AdbPersistService _adbPersistService;
         private readonly PartitionService _partitionService;
         private readonly PartitionMountService _partitionMountService;
+        private readonly ScreenMirrorService _screenMirrorService;
         private CancellationTokenSource _partitionTransferCts;
+        private CancellationTokenSource _screenMirrorCts;
+        private string _mirrorActiveSerial;
+        private ScreenMirrorDisplayInfo _mirrorDisplayInfo = new ScreenMirrorDisplayInfo();
 
         private DeviceInfo _selectedDevice;
         private DeviceStatus _currentStatus = new DeviceStatus();
@@ -40,6 +48,8 @@ namespace YoudaoPenToolbox.ViewModels
         private bool _isBusy;
         private string _lastDisconnectedSerial;
         private string _lastAuthWarningSerial;
+        private readonly HashSet<string> _adbPersistAutoAttemptSerials = new HashSet<string>(StringComparer.Ordinal);
+        private bool _adbPersistAutoConfiguring;
         private string _param1;
         private string _param2;
         private string _cliHelpText;
@@ -69,7 +79,8 @@ namespace YoudaoPenToolbox.ViewModels
         private ProcessInfo _selectedProcess;
         private string _selectedProcessDetail = "";
         private string _processControlHint = "选中进程后可终结或重启";
-        private string _currentRemotePath = "/";
+        private string _currentRemotePath = RemotePathHelper.DefaultUserDataPath;
+        private string _lastValidRemotePath = RemotePathHelper.DefaultUserDataPath;
         private string _remoteFileSummary = "未连接设备";
         private RemoteFileItem _selectedRemoteFile;
         private List<RemoteFileItem> _selectedRemoteFiles = new List<RemoteFileItem>();
@@ -86,6 +97,9 @@ namespace YoudaoPenToolbox.ViewModels
         private string _partitionSearchText;
         private string _activeAbSlot;
         private bool _needsAdbUnlock;
+        private bool _isScreenMirroring;
+        private ImageSource _screenMirrorFrame;
+        private string _screenMirrorStatsText = "尚未开始投屏";
 
         public MainViewModel()
         {
@@ -102,6 +116,8 @@ namespace YoudaoPenToolbox.ViewModels
             _adbPersistService = new AdbPersistService(_adbService);
             _partitionService = new PartitionService(_adbService);
             _partitionMountService = new PartitionMountService(_adbService);
+            _screenMirrorService = new ScreenMirrorService(_adbService, _cliService);
+            _screenMirrorService.FrameReady += OnScreenMirrorFrameReady;
             _monitorService.StatusUpdated += (_, status) =>
             {
                 Application.Current.Dispatcher.Invoke(() => CurrentStatus = status);
@@ -163,7 +179,7 @@ namespace YoudaoPenToolbox.ViewModels
             DeleteRemoteFileCommand = new RelayCommand(async () => await DeleteSelectedRemoteFileAsync(), CanDeleteSelectedRemoteFile);
             DownloadRemoteFilesCommand = new RelayCommand(async () => await DownloadSelectedRemoteFilesAsync(), CanDownloadSelectedRemoteFiles);
             BrowseUploadRemoteFilesCommand = new RelayCommand(BrowseUploadRemoteFiles, () => SelectedDevice != null && !IsBusy);
-            CreateRemoteFolderCommand = new RelayCommand(async () => await CreateRemoteFolderAsync(), () => SelectedDevice != null && !IsBusy);
+            CreateRemoteFolderCommand = new AsyncRelayCommand(CreateRemoteFolderAsync, () => SelectedDevice != null && !IsBusy);
             RenameRemoteFileCommand = new RelayCommand(async () => await RenameSelectedRemoteFileAsync(), CanRenameSelectedRemoteFile);
             RefreshPartitionsCommand = new RelayCommand(async () => await RefreshPartitionsAsync(), () => SelectedDevice != null && !IsBusy);
             ExtractPartitionCommand = new RelayCommand(async () => await ExtractSelectedPartitionAsync(), CanOperateSelectedPartition);
@@ -174,6 +190,10 @@ namespace YoudaoPenToolbox.ViewModels
             ToggleSelectAllPartitionsCommand = new RelayCommand(ToggleSelectAllPartitions, () => BlockPartitions.Count > 0 && !IsBusy && _partitionTransferCts == null);
             MountSelectedPartitionCommand = new RelayCommand(async () => await MountSelectedPartitionAsync(), CanMountSelectedPartition);
             UnmountSelectedPartitionCommand = new RelayCommand(async () => await UnmountSelectedPartitionAsync(), CanUnmountSelectedPartition);
+            StartScreenMirrorCommand = new RelayCommand(async () => await StartScreenMirrorAsync(), CanStartScreenMirror);
+            StopScreenMirrorCommand = new RelayCommand(async () => await StopScreenMirrorAsync(), () => IsScreenMirroring);
+            MirrorInjectHomeCommand = new RelayCommand(async () => await MirrorPressHomeAsync(), CanMirrorInjectKey);
+            MirrorInjectBackCommand = new RelayCommand(async () => await MirrorPressBackAsync(), CanMirrorInjectKey);
         }
 
         public ObservableCollection<BlockPartitionInfo> BlockPartitions { get; } = new ObservableCollection<BlockPartitionInfo>();
@@ -188,8 +208,15 @@ namespace YoudaoPenToolbox.ViewModels
             get => _selectedDevice;
             set
             {
+                var nextSerial = value?.Serial;
                 if (SetProperty(ref _selectedDevice, value))
                 {
+                    if (!string.IsNullOrWhiteSpace(_mirrorActiveSerial)
+                        && !string.Equals(_mirrorActiveSerial, nextSerial, StringComparison.Ordinal))
+                    {
+                        _ = StopScreenMirrorAsync();
+                    }
+
                     OnPropertyChanged(nameof(HasSelectedDevice));
                     NotifyAdbUnlockPanelState();
                     _ = OnDeviceSelectedAsync();
@@ -554,6 +581,30 @@ namespace YoudaoPenToolbox.ViewModels
             private set => SetProperty(ref _compatibilityReport, value);
         }
 
+        public bool IsScreenMirroring
+        {
+            get => _isScreenMirroring;
+            private set
+            {
+                if (SetProperty(ref _isScreenMirroring, value))
+                {
+                    CommandManagerHelper.Invalidate();
+                }
+            }
+        }
+
+        public ImageSource ScreenMirrorFrame
+        {
+            get => _screenMirrorFrame;
+            private set => SetProperty(ref _screenMirrorFrame, value);
+        }
+
+        public string ScreenMirrorStatsText
+        {
+            get => _screenMirrorStatsText;
+            private set => SetProperty(ref _screenMirrorStatsText, value);
+        }
+
         public RelayCommand RefreshDevicesCommand { get; }
         public RelayCommand<DeviceInfo> SelectDeviceCommand { get; }
         public RelayCommand ExecuteCommandCommand { get; }
@@ -592,7 +643,7 @@ namespace YoudaoPenToolbox.ViewModels
         public RelayCommand DeleteRemoteFileCommand { get; }
         public RelayCommand DownloadRemoteFilesCommand { get; }
         public RelayCommand BrowseUploadRemoteFilesCommand { get; }
-        public RelayCommand CreateRemoteFolderCommand { get; }
+        public ICommand CreateRemoteFolderCommand { get; }
         public RelayCommand RenameRemoteFileCommand { get; }
         public RelayCommand RefreshPartitionsCommand { get; }
         public RelayCommand ExtractPartitionCommand { get; }
@@ -603,6 +654,10 @@ namespace YoudaoPenToolbox.ViewModels
         public RelayCommand ToggleSelectAllPartitionsCommand { get; }
         public RelayCommand MountSelectedPartitionCommand { get; }
         public RelayCommand UnmountSelectedPartitionCommand { get; }
+        public RelayCommand StartScreenMirrorCommand { get; }
+        public RelayCommand StopScreenMirrorCommand { get; }
+        public RelayCommand MirrorInjectHomeCommand { get; }
+        public RelayCommand MirrorInjectBackCommand { get; }
 
         public string PartitionSearchText
         {
@@ -832,6 +887,7 @@ namespace YoudaoPenToolbox.ViewModels
             ClearRemoteFiles();
             ClearPartitions();
             StatusMessage = "设备已断开连接";
+            _adbPersistAutoAttemptSerials.Remove(serial);
 
             if (_lastDisconnectedSerial != serial)
             {
@@ -891,6 +947,13 @@ namespace YoudaoPenToolbox.ViewModels
             await RefreshAdbPersistStatusAsync();
             if (await _adbService.IsShellAccessibleAsync(SelectedDevice.Serial).ConfigureAwait(true))
             {
+                if (RemotePathHelper.Normalize(CurrentRemotePath) == "/")
+                {
+                    CurrentRemotePath = RemotePathHelper.DefaultUserDataPath;
+                }
+
+                _lastValidRemotePath = RemotePathHelper.Normalize(CurrentRemotePath);
+
                 await RefreshStatusOnceAsync();
                 await RefreshAppsAsync();
                 await RefreshRemoteFilesAsync();
@@ -1471,27 +1534,28 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
+            var choiceDialog = new Views.LoliPlatformChoiceDialog
+            {
+                Owner = Application.Current.MainWindow
+            };
+            Application.Current?.MainWindow?.Activate();
+            if (choiceDialog.ShowDialog() != true || choiceDialog.Choice == Views.LoliPlatformChoice.None)
+            {
+                StatusMessage = "已取消 Loli 安装";
+                return;
+            }
+
             IsBusy = true;
             try
             {
-                StatusMessage = "正在运行兼容性检测...";
-                var platform = await _loliInstallService.DetectPlatformAsync(SelectedDevice.Serial).ConfigureAwait(true);
+                StatusMessage = "正在准备安装环境...";
+                var useRockchip = choiceDialog.Choice == Views.LoliPlatformChoice.Rockchip;
+                var platform = await _loliInstallService
+                    .BuildPlatformFromUserChoiceAsync(SelectedDevice.Serial, useRockchip)
+                    .ConfigureAwait(true);
                 ApplyCompatibilityResult(platform);
 
-                if (!platform.IsSupported)
-                {
-                    AppMessageBox.Show(
-                        "未能自动识别设备芯片类型，无法选择 Loli 安装包。\n\n" +
-                        $"{platform.DetectionDetail}\n\n" +
-                        "可将下方兼容性检测输出发给 AI 或群内询问。",
-                        "无法安装 Loli",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                    StatusMessage = "设备平台识别失败";
-                    return;
-                }
-
-                StatusMessage = $"已识别 {platform.PlatformLabel}，正在查询最新版本...";
+                StatusMessage = $"已选择 {platform.PlatformLabel}，正在查询最新版本...";
                 var release = await _loliInstallService.GetLatestReleaseAsync(platform).ConfigureAwait(true);
 
                 var confirm = AppMessageBox.Show(
@@ -1500,7 +1564,8 @@ namespace YoudaoPenToolbox.ViewModels
                     $"分支：{platform.RepositorySubPath}\n" +
                     $"版本：v{release.VersionText}\n" +
                     $"文件：{release.FileName}\n\n" +
-                    "将从 Gitee 下载并安装，是否继续？",
+                    "将从 Gitee 下载并安装，是否继续？\n\n" +
+                    "安装完成后，请在词典笔上打开「计算器」，输入 1999 进入桌面。",
                     "一键安装 Loli",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question);
@@ -1518,7 +1583,16 @@ namespace YoudaoPenToolbox.ViewModels
                 });
                 var localPath = await _loliInstallService.DownloadReleaseAsync(release, progress).ConfigureAwait(true);
                 StatusMessage = "下载完成，正在上传并安装...";
-                await InstallAmrAsync(localPath, skipConfirmation: true, manageBusyState: false).ConfigureAwait(true);
+                var installed = await InstallAmrAsync(localPath, skipConfirmation: true, manageBusyState: false)
+                    .ConfigureAwait(true);
+                if (installed)
+                {
+                    AppMessageBox.Show(
+                        "Loli 安装完成。\n\n请在词典笔上打开「计算器」，输入 1999 进入桌面。",
+                        "安装成功",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
             }
             catch (Exception ex)
             {
@@ -1632,18 +1706,18 @@ namespace YoudaoPenToolbox.ViewModels
             CompatibilityReport = string.Empty;
         }
 
-        public async Task InstallAmrAsync(string localPath, bool skipConfirmation = false, bool manageBusyState = true)
+        public async Task<bool> InstallAmrAsync(string localPath, bool skipConfirmation = false, bool manageBusyState = true)
         {
             if (SelectedDevice == null || string.IsNullOrWhiteSpace(localPath))
             {
-                return;
+                return false;
             }
 
             var fileName = System.IO.Path.GetFileName(localPath);
             if (!fileName.EndsWith(".amr", StringComparison.OrdinalIgnoreCase))
             {
                 Growl.Warning("仅支持 .amr 格式的小程序包");
-                return;
+                return false;
             }
 
             if (!skipConfirmation)
@@ -1660,7 +1734,7 @@ namespace YoudaoPenToolbox.ViewModels
                     Application.Current?.MainWindow?.Activate();
                     if (dialog.ShowDialog() != true)
                     {
-                        return;
+                        return false;
                     }
                 }
                 finally
@@ -1677,9 +1751,11 @@ namespace YoudaoPenToolbox.ViewModels
             StatusMessage = $"正在上传 {fileName} 到设备...";
             var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName()}";
             var remoteUploaded = false;
+            var deviceSerial = SelectedDevice.Serial;
+            var installSucceeded = false;
             try
             {
-                var pushed = await _adbService.PushFileAsync(SelectedDevice.Serial, localPath, remotePath);
+                var pushed = await _adbService.PushFileAsync(deviceSerial, localPath, remotePath);
                 if (!pushed)
                 {
                     throw new InvalidOperationException("上传 AMR 文件到设备失败");
@@ -1687,7 +1763,7 @@ namespace YoudaoPenToolbox.ViewModels
 
                 remoteUploaded = true;
                 StatusMessage = "正在设备安装 AMR，请勿断开...";
-                var result = await _cliService.ExecuteRawAsync(SelectedDevice.Serial, $"install {remotePath}", 300000);
+                var result = await _cliService.ExecuteRawAsync(deviceSerial, $"install {remotePath}", 300000);
                 var installResult = MiniAppCliResultParser.ParseInstall(result);
                 var formatted = MiniAppCliOutputFormatter.Format("install", result);
                 CommandOutput = $"[{DateTime.Now:HH:mm:ss}] install {fileName}\r\n{formatted}\r\n\r\n{CommandOutput}";
@@ -1698,6 +1774,7 @@ namespace YoudaoPenToolbox.ViewModels
                     {
                         Growl.Success(installResult.Summary ?? "安装完成");
                         StatusMessage = "安装成功";
+                        installSucceeded = true;
                     }
                     else
                     {
@@ -1715,6 +1792,7 @@ namespace YoudaoPenToolbox.ViewModels
                 {
                     Growl.Success("安装完成");
                     StatusMessage = "安装成功";
+                    installSucceeded = true;
                 }
 
                 await RefreshAppsAsync();
@@ -1726,9 +1804,9 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
-                if (remoteUploaded)
+                if (remoteUploaded && !string.IsNullOrWhiteSpace(deviceSerial))
                 {
-                    await AppBackupService.TryDeleteRemoteFileAsync(_adbService, SelectedDevice.Serial, remotePath)
+                    await AppBackupService.TryDeleteRemoteFileAsync(_adbService, deviceSerial, remotePath)
                         .ConfigureAwait(true);
                 }
 
@@ -1737,6 +1815,8 @@ namespace YoudaoPenToolbox.ViewModels
                     IsBusy = false;
                 }
             }
+
+            return installSucceeded;
         }
 
         private async Task UninstallSelectedAppAsync()
@@ -2074,6 +2154,240 @@ namespace YoudaoPenToolbox.ViewModels
             }
         }
 
+        private bool CanStartScreenMirror()
+        {
+            return SelectedDevice != null && !IsBusy && !IsScreenMirroring && !NeedsAdbUnlock;
+        }
+
+        private bool CanMirrorInjectKey()
+        {
+            return SelectedDevice != null && IsScreenMirroring && !NeedsAdbUnlock;
+        }
+
+        private void OnScreenMirrorFrameReady(object sender, ScreenMirrorFrameEventArgs e)
+        {
+            if (e?.Frame == null)
+            {
+                return;
+            }
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                ScreenMirrorFrame = e.Frame;
+                ScreenMirrorStatsText =
+                    $"帧 #{e.FrameIndex}  ·  延迟 {e.FrameLatencyMs} ms  ·  {e.FramesPerSecond:F1} FPS";
+            });
+        }
+
+        public async Task StartScreenMirrorAsync()
+        {
+            if (SelectedDevice == null || IsScreenMirroring)
+            {
+                return;
+            }
+
+            if (NeedsAdbUnlock)
+            {
+                Growl.Warning("请先解锁 ADB 后再使用投屏");
+                return;
+            }
+
+            _screenMirrorCts?.Cancel();
+            _screenMirrorCts?.Dispose();
+            _screenMirrorCts = new CancellationTokenSource();
+            var token = _screenMirrorCts.Token;
+            var serial = SelectedDevice.Serial;
+
+            IsBusy = true;
+            StatusMessage = "正在检测投屏能力...";
+            try
+            {
+                var supported = await _screenMirrorService.ProbeAsync(serial, token).ConfigureAwait(true);
+                if (!supported)
+                {
+                    Growl.Error("当前设备不支持 miniapp_cli capture 投屏，请确认 miniapp 正常运行");
+                    StatusMessage = "投屏不可用";
+                    DisposeMirrorCts();
+                    return;
+                }
+
+                _mirrorDisplayInfo = await _screenMirrorService.LoadDisplayInfoAsync(serial).ConfigureAwait(true);
+
+                var inputReady = await _screenMirrorService.ProbeRemoteInputAsync(serial).ConfigureAwait(true);
+                if (!inputReady)
+                {
+                    Growl.Warning("设备缺少 send_event / hal-key，预览可用但无法远程触控");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                DisposeMirrorCts();
+                return;
+            }
+            catch (Exception ex)
+            {
+                Growl.Error($"投屏启动失败: {ex.Message}");
+                StatusMessage = ex.Message;
+                DisposeMirrorCts();
+                return;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+
+            IsScreenMirroring = true;
+            _mirrorActiveSerial = serial;
+            ScreenMirrorStatsText = "正在获取画面...";
+            StatusMessage = "投屏中";
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _screenMirrorService.RunMirrorLoopAsync(serial, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    Application.Current?.Dispatcher.Invoke(() => Growl.Error($"投屏中断: {ex.Message}"));
+                }
+                finally
+                {
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        if (IsScreenMirroring)
+                        {
+                            _ = StopScreenMirrorAsync();
+                        }
+                    });
+                }
+            }, token);
+        }
+
+        private void DisposeMirrorCts()
+        {
+            _screenMirrorCts?.Cancel();
+            _screenMirrorCts?.Dispose();
+            _screenMirrorCts = null;
+        }
+
+        public async Task StopScreenMirrorAsync()
+        {
+            if (_screenMirrorCts == null && !IsScreenMirroring && string.IsNullOrWhiteSpace(_mirrorActiveSerial))
+            {
+                return;
+            }
+
+            DisposeMirrorCts();
+
+            var serial = _mirrorActiveSerial;
+            _mirrorActiveSerial = null;
+
+            if (!string.IsNullOrWhiteSpace(serial))
+            {
+                await _screenMirrorService.CleanupAsync(serial).ConfigureAwait(true);
+            }
+
+            IsScreenMirroring = false;
+            ScreenMirrorFrame = null;
+            ScreenMirrorStatsText = "尚未开始投屏";
+            _mirrorDisplayInfo = new ScreenMirrorDisplayInfo();
+            if (!IsBusy)
+            {
+                StatusMessage = "投屏已停止";
+            }
+        }
+
+        public async Task HandleMirrorPointerAsync(Point start, Point end, FrameworkElement element)
+        {
+            if (!IsScreenMirroring || ScreenMirrorFrame == null || element == null)
+            {
+                return;
+            }
+
+            var serial = _mirrorActiveSerial;
+            if (string.IsNullOrWhiteSpace(serial))
+            {
+                return;
+            }
+
+            if (!ScreenMirrorCoordinateHelper.TryMapElementPointToDevice(
+                    element,
+                    ScreenMirrorFrame,
+                    _mirrorDisplayInfo,
+                    start,
+                    out var startX,
+                    out var startY)
+                || !ScreenMirrorCoordinateHelper.TryMapElementPointToDevice(
+                    element,
+                    ScreenMirrorFrame,
+                    _mirrorDisplayInfo,
+                    end,
+                    out var endX,
+                    out var endY))
+            {
+                return;
+            }
+
+            try
+            {
+                var deltaX = end.X - start.X;
+                var deltaY = end.Y - start.Y;
+                var distance = Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+                if (distance < 12)
+                {
+                    await _screenMirrorService.TapAsync(serial, startX, startY).ConfigureAwait(true);
+                }
+                else
+                {
+                    await _screenMirrorService.SwipeAsync(serial, startX, startY, endX, endY).ConfigureAwait(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Growl.Warning($"触控发送失败: {ex.Message}");
+            }
+        }
+
+        private async Task MirrorPressHomeAsync()
+        {
+            var serial = _mirrorActiveSerial ?? SelectedDevice?.Serial;
+            if (string.IsNullOrWhiteSpace(serial) || !IsScreenMirroring)
+            {
+                return;
+            }
+
+            try
+            {
+                await _screenMirrorService.PressHomeAsync(serial).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                Growl.Warning($"Home 发送失败: {ex.Message}");
+            }
+        }
+
+        private async Task MirrorPressBackAsync()
+        {
+            var serial = _mirrorActiveSerial ?? SelectedDevice?.Serial;
+            if (string.IsNullOrWhiteSpace(serial) || !IsScreenMirroring)
+            {
+                return;
+            }
+
+            try
+            {
+                await _screenMirrorService.PressBackAsync(serial).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                Growl.Warning($"Back 发送失败: {ex.Message}");
+            }
+        }
+
         private async Task CaptureScreenAsync()
         {
             if (SelectedDevice == null)
@@ -2096,11 +2410,13 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             IsBusy = true;
+            string remotePath = null;
+            var deviceSerial = SelectedDevice.Serial;
             try
             {
-                var remotePath = $"/tmp/capture_{DateTime.Now.Ticks}.png";
-                var result = await _cliService.ExecuteRawAsync(SelectedDevice.Serial, $"capture {remotePath}");
-                var pulled = await _adbService.PullFileAsync(SelectedDevice.Serial, remotePath, dlg.FileName);
+                remotePath = $"/tmp/capture_{DateTime.Now.Ticks}.png";
+                var result = await _cliService.ExecuteRawAsync(deviceSerial, $"capture {remotePath}");
+                var pulled = await _adbService.PullFileAsync(deviceSerial, remotePath, dlg.FileName);
                 CommandOutput = $"[{DateTime.Now:HH:mm:ss}] capture\r\n{result}\r\n保存至: {dlg.FileName}\r\n\r\n{CommandOutput}";
 
                 if (pulled)
@@ -2118,6 +2434,12 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
+                if (!string.IsNullOrWhiteSpace(remotePath))
+                {
+                    await AppBackupService.TryDeleteRemoteFileAsync(_adbService, deviceSerial, remotePath)
+                        .ConfigureAwait(true);
+                }
+
                 IsBusy = false;
             }
         }
@@ -2184,6 +2506,8 @@ namespace YoudaoPenToolbox.ViewModels
                 AdbPersistSummary = status.Summary;
                 if (status.ShellAccessible)
                 {
+                    await TryAutoEnableAdbPersistAsync(SelectedDevice.Serial, status).ConfigureAwait(true);
+
                     if (SelectedDevice.AndroidVersion == "需解锁 ADB")
                     {
                         await EnrichDeviceInfoAsync(SelectedDevice).ConfigureAwait(true);
@@ -2199,6 +2523,55 @@ namespace YoudaoPenToolbox.ViewModels
             catch (Exception ex)
             {
                 AdbPersistSummary = $"检测失败: {ex.Message}";
+            }
+        }
+
+        private async Task TryAutoEnableAdbPersistAsync(string serial, AdbPersistStatus status)
+        {
+            if (string.IsNullOrWhiteSpace(serial)
+                || status == null
+                || !status.ShellAccessible
+                || status.IsPersistEnabled
+                || _adbPersistAutoConfiguring
+                || _adbPersistAutoAttemptSerials.Contains(serial))
+            {
+                return;
+            }
+
+            _adbPersistAutoConfiguring = true;
+            _adbPersistAutoAttemptSerials.Add(serial);
+            try
+            {
+                StatusMessage = "检测到未配置 ADB 持久化，正在自动配置...";
+                var result = await _adbPersistService.EnsurePersistAsync(serial).ConfigureAwait(true);
+
+                if (result.Status != null)
+                {
+                    AdbPersistSummary = result.Status.Summary;
+                }
+
+                switch (result.Action)
+                {
+                    case AdbPersistEnsureAction.Configured:
+                        Growl.Success("已自动配置 ADB 持久化，重启后授权仍有效");
+                        StatusMessage = "ADB 持久化已自动配置";
+                        break;
+                    case AdbPersistEnsureAction.Failed:
+                        AdbPersistSummary = $"未配置（自动配置失败: {result.ErrorMessage}）";
+                        Growl.Warning($"ADB 持久化自动配置失败: {result.ErrorMessage}");
+                        StatusMessage = "ADB 持久化自动配置失败";
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                AdbPersistSummary = $"未配置（自动配置失败: {ex.Message}）";
+                Growl.Warning($"ADB 持久化自动配置失败: {ex.Message}");
+                StatusMessage = ex.Message;
+            }
+            finally
+            {
+                _adbPersistAutoConfiguring = false;
             }
         }
 
@@ -2494,6 +2867,7 @@ namespace YoudaoPenToolbox.ViewModels
             _selectedRemoteFiles = new List<RemoteFileItem>();
             _remoteFileItemCount = 0;
             CurrentRemotePath = "/";
+            _lastValidRemotePath = RemotePathHelper.DefaultUserDataPath;
             RemoteFileSummary = "未连接设备";
             OnPropertyChanged(nameof(SelectedRemoteFileCount));
         }
@@ -2542,9 +2916,18 @@ namespace YoudaoPenToolbox.ViewModels
                 {
                     _remoteFileItemCount = 0;
                     RemoteFileSummary = listing.ErrorMessage;
-                    Growl.Warning(listing.ErrorMessage);
+                    Growl.Warning($"目录不存在: {path}");
+
+                    if (!string.Equals(path, _lastValidRemotePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        CurrentRemotePath = _lastValidRemotePath;
+                        await RefreshRemoteFilesAsync().ConfigureAwait(true);
+                    }
+
                     return;
                 }
+
+                _lastValidRemotePath = path;
 
                 foreach (var item in listing.Items)
                 {
@@ -2553,6 +2936,10 @@ namespace YoudaoPenToolbox.ViewModels
 
                 _remoteFileItemCount = RemoteFiles.Count;
                 UpdateRemoteFileSummaryText();
+                Application.Current?.Dispatcher?.BeginInvoke(new Action(() =>
+                {
+                    CollectionViewSource.GetDefaultView(RemoteFiles)?.Refresh();
+                }), DispatcherPriority.Background);
             }
             catch (Exception ex)
             {
@@ -2575,14 +2962,7 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            var path = RemotePathHelper.Normalize(CurrentRemotePath);
-            if (!await _fileBrowserService.DirectoryExistsAsync(SelectedDevice.Serial, path).ConfigureAwait(true))
-            {
-                Growl.Warning($"目录不存在: {path}");
-                return;
-            }
-
-            CurrentRemotePath = path;
+            CurrentRemotePath = RemotePathHelper.Normalize(CurrentRemotePath);
             await RefreshRemoteFilesAsync().ConfigureAwait(true);
         }
 
@@ -2857,6 +3237,33 @@ namespace YoudaoPenToolbox.ViewModels
             return items.Count == 1;
         }
 
+        private RemoteFileItem FindRemoteDirectoryEntry(string folderName)
+        {
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                return null;
+            }
+
+            var trimmedName = folderName.Trim();
+            var targetPath = RemotePathHelper.Combine(RemotePathHelper.Normalize(CurrentRemotePath), trimmedName);
+            foreach (var item in RemoteFiles)
+            {
+                if (item == null || !item.IsDirectory)
+                {
+                    continue;
+                }
+
+                if (string.Equals(DeviceFileBrowserService.GetEntryFileName(item), trimmedName, StringComparison.Ordinal)
+                    || string.Equals(item.Name, trimmedName, StringComparison.Ordinal)
+                    || string.Equals(item.FullPath, targetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return item;
+                }
+            }
+
+            return null;
+        }
+
         private async Task CreateRemoteFolderAsync()
         {
             if (SelectedDevice == null)
@@ -2864,10 +3271,36 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
+            var parentPath = RemotePathHelper.Normalize(CurrentRemotePath);
+            if (!await _fileBrowserService.DirectoryExistsAsync(SelectedDevice.Serial, parentPath).ConfigureAwait(true))
+            {
+                Growl.Warning($"当前路径不存在：{parentPath}\n请先在路径栏输入有效目录（如 /userdisk）并点击「前往」，再新建文件夹。");
+                return;
+            }
+
+            if (!await _fileBrowserService.IsDirectoryWritableAsync(SelectedDevice.Serial, parentPath)
+                    .ConfigureAwait(true))
+            {
+                var message =
+                    $"「{parentPath}」为只读目录，无法在此创建文件夹。\n" +
+                    $"是否切换到 {RemotePathHelper.DefaultUserDataPath}（用户数据盘）？";
+                if (AppMessageBox.Show(message, "无法创建文件夹", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+                    == MessageBoxResult.Yes)
+                {
+                    CurrentRemotePath = RemotePathHelper.DefaultUserDataPath;
+                    parentPath = RemotePathHelper.DefaultUserDataPath;
+                    await RefreshRemoteFilesAsync().ConfigureAwait(true);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
             var dialog = new TextInputDialog(
                 "新建文件夹",
-                $"将在以下目录创建文件夹：\n{CurrentRemotePath}",
-                "新建文件夹")
+                $"将在以下目录创建文件夹：\n{parentPath}",
+                string.Empty)
             {
                 Owner = Application.Current.MainWindow
             };
@@ -2879,15 +3312,35 @@ namespace YoudaoPenToolbox.ViewModels
 
             IsBusy = true;
             StatusMessage = "正在创建文件夹...";
+            var folderName = dialog.InputText.Trim();
             try
             {
                 await _fileBrowserService.CreateDirectoryAsync(
                     SelectedDevice.Serial,
-                    CurrentRemotePath,
-                    dialog.InputText).ConfigureAwait(true);
-                Growl.Success($"已创建文件夹 {dialog.InputText}");
-                StatusMessage = $"已创建文件夹 {dialog.InputText}";
+                    parentPath,
+                    folderName).ConfigureAwait(true);
+
                 await RefreshRemoteFilesAsync().ConfigureAwait(true);
+
+                var created = FindRemoteDirectoryEntry(folderName);
+                if (created == null)
+                {
+                    await RefreshRemoteFilesAsync().ConfigureAwait(true);
+                    created = FindRemoteDirectoryEntry(folderName);
+                }
+
+                if (created == null)
+                {
+                    var targetPath = RemotePathHelper.Combine(parentPath, folderName);
+                    Growl.Warning($"文件夹可能已创建，但列表未显示：{targetPath}\n请点击「刷新」");
+                    StatusMessage = $"请刷新查看：{targetPath}";
+                    return;
+                }
+
+                SelectedRemoteFile = created;
+                Growl.Success($"已创建文件夹 {folderName}（{created.FullPath}）");
+                StatusMessage = $"已创建文件夹 {folderName}";
+                OnPropertyChanged(nameof(SelectedRemoteFile));
             }
             catch (Exception ex)
             {
@@ -3108,6 +3561,14 @@ namespace YoudaoPenToolbox.ViewModels
         public void Cleanup()
         {
             CancelPartitionTransfer();
+            DisposeMirrorCts();
+            if (!string.IsNullOrWhiteSpace(_mirrorActiveSerial))
+            {
+                var serial = _mirrorActiveSerial;
+                _mirrorActiveSerial = null;
+                _ = _screenMirrorService.CleanupAsync(serial);
+            }
+
             _deviceWatchService.Stop();
             _monitorService.StopMonitoring();
             _processMonitorService.StopMonitoring();

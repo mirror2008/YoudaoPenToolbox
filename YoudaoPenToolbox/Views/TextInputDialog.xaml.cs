@@ -13,8 +13,11 @@ namespace YoudaoPenToolbox.Views
             Title = title;
             PromptText.Text = prompt;
             InputTextBox.Text = defaultText ?? string.Empty;
-            InputTextBox.SelectAll();
-            InputTextBox.Focus();
+            Loaded += (_, __) =>
+            {
+                InputTextBox.Focus();
+                InputTextBox.SelectAll();
+            };
         }
 
         public string InputText => InputTextBox.Text?.Trim() ?? string.Empty;
