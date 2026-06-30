@@ -1,7 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Navigation;
 using YoudaoPenToolbox.Helpers;
 using YoudaoPenToolbox.Services;
 
@@ -22,6 +24,12 @@ namespace YoudaoPenToolbox.Views
         private void PayUnlockButton_Click(object sender, RoutedEventArgs e)
         {
             DialogAnimationHelper.TransitionPanels(IntroPanel, PaymentPanel);
+        }
+
+        private void ExternalLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)

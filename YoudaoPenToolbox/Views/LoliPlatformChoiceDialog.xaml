@@ -1,0 +1,40 @@
+<Window x:Class="YoudaoPenToolbox.Views.LoliPlatformChoiceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="选择 Loli 架构"
+        Width="520"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        FontFamily="Segoe UI, Microsoft YaHei UI"
+        Background="{DynamicResource RegionBrush}">
+    <Border x:Name="DialogRoot" Style="{StaticResource DialogCard}" Margin="24">
+        <StackPanel>
+            <TextBlock Text="选择芯片架构" Style="{StaticResource DialogTitle}" Margin="0,0,0,14"/>
+            <TextBlock Text="请根据你的词典笔芯片选择安装分支：" TextWrapping="Wrap"
+                       Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,14"/>
+
+            <Button Content="RK 芯片（rk-gst / GStreamer）" Height="44" Margin="0,0,0,8"
+                    HorizontalContentAlignment="Left" Padding="16,0"
+                    Click="Rk_Click"
+                    ToolTip="Rockchip 系列，如 X7、X7Pro、Y02 等"/>
+            <Button Content="CVI 芯片（cvi-ffmpeg / FFmpeg）" Height="44" Margin="0,0,0,14"
+                    HorizontalContentAlignment="Left" Padding="16,0"
+                    Click="Cvi_Click"
+                    ToolTip="CVITEK 系列，如 A6、A7、X5、S6、S7 等"/>
+
+            <Border Padding="14,12" CornerRadius="10" Background="{DynamicResource RegionBrush}">
+                <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="20" Foreground="#E6A23C">
+                    <Run Text="安装完成后，请在词典笔上打开「计算器」，输入 "/>
+                    <Run Text="1999" FontWeight="SemiBold"/>
+                    <Run Text=" 进入桌面。"/>
+                </TextBlock>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                <Button Content="取消" Width="100" Height="38" IsCancel="True" Click="Cancel_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

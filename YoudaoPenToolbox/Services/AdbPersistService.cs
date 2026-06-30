@@ -64,6 +64,49 @@ namespace YoudaoPenToolbox.Services
             return status;
         }
 
+        public async Task<AdbPersistEnsureResult> EnsurePersistAsync(string serial)
+        {
+            var status = await GetStatusAsync(serial).ConfigureAwait(false);
+            if (!status.ShellAccessible)
+            {
+                return new AdbPersistEnsureResult
+                {
+                    Action = AdbPersistEnsureAction.SkippedShellLocked,
+                    Status = status
+                };
+            }
+
+            if (status.IsPersistEnabled)
+            {
+                return new AdbPersistEnsureResult
+                {
+                    Action = AdbPersistEnsureAction.AlreadyEnabled,
+                    Status = status
+                };
+            }
+
+            try
+            {
+                var log = await EnableAsync(serial).ConfigureAwait(false);
+                var after = await GetStatusAsync(serial).ConfigureAwait(false);
+                return new AdbPersistEnsureResult
+                {
+                    Action = AdbPersistEnsureAction.Configured,
+                    Status = after,
+                    Log = log
+                };
+            }
+            catch (Exception ex)
+            {
+                return new AdbPersistEnsureResult
+                {
+                    Action = AdbPersistEnsureAction.Failed,
+                    Status = status,
+                    ErrorMessage = ex.Message
+                };
+            }
+        }
+
         private static string BuildSummary(AdbPersistStatus status)
         {
             if (!status.ShellAccessible)

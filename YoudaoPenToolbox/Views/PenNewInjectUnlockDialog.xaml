@@ -24,9 +24,9 @@
 
             <StackPanel x:Name="PaymentPanel" Visibility="Collapsed">
                 <TextBlock TextWrapping="Wrap" Margin="0,0,0,18">
-                    <Run Text="请使用邮件联系 "/>
-                    <Run Text="nullplex2000@proton.me" FontWeight="SemiBold"/>
-                    <Run Text=" 获取解锁 KEY，并付费 25 元。"/>
+                    <Run Text="请前往 "/>
+                    <Hyperlink NavigateUri="https://afdian.com/a/Mirror_CN" RequestNavigate="ExternalLink_RequestNavigate">爱发电 · Mirror_CN</Hyperlink>
+                    <Run Text=" 自助获取解锁 KEY。"/>
                 </TextBlock>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="返回" Width="100" Height="38" Margin="0,0,10,0" Click="BackButton_Click"/>

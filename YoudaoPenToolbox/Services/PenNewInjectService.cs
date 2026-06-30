@@ -63,7 +63,7 @@ namespace YoudaoPenToolbox.Services
             Directory.CreateDirectory(downloadDir);
             Directory.CreateDirectory(extractDir);
 
-            var existingExe = FindExecutable(extractDir, "PenNewInject.Pro.exe");
+            var existingExe = FindExecutable(extractDir, "PenNewInject.Ultra.exe");
             if (existingExe != null && AreAllShardsPresent(downloadDir, manifest))
             {
                 status?.Report("已存在完整安装包，正在启动...");
@@ -84,10 +84,10 @@ namespace YoudaoPenToolbox.Services
             var firstPart = Path.Combine(downloadDir, $"{manifest.ArchiveBaseName}.001");
             await Extract7ZipAsync(firstPart, extractDir, status, progress, cancellationToken).ConfigureAwait(false);
 
-            var exePath = FindExecutable(extractDir, "PenNewInject.Pro.exe");
+            var exePath = FindExecutable(extractDir, "PenNewInject.Ultra.exe");
             if (exePath == null)
             {
-                throw new FileNotFoundException("解压后未找到 PenNewInject.Pro.exe。");
+                throw new FileNotFoundException("解压后未找到 PenNewInject.Ultra.exe。");
             }
 
             return exePath;
@@ -97,7 +97,7 @@ namespace YoudaoPenToolbox.Services
         {
             if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
             {
-                throw new FileNotFoundException("PenNewInject.Pro.exe 不存在。", executablePath);
+                throw new FileNotFoundException("PenNewInject.Ultra.exe 不存在。", executablePath);
             }
 
             Process.Start(new ProcessStartInfo

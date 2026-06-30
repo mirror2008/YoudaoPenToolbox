@@ -112,6 +112,17 @@ namespace YoudaoPenToolbox.Services
             return RunAdbAsync(args, timeoutMs);
         }
 
+        public Task<string> ShellScriptAsync(string serial, string script, int timeoutMs = 120000)
+        {
+            if (string.IsNullOrWhiteSpace(script))
+            {
+                throw new ArgumentException("Shell 脚本不能为空", nameof(script));
+            }
+
+            var wrapped = "sh -c " + RemotePathHelper.ShellQuote(script);
+            return ShellAsync(serial, wrapped, timeoutMs);
+        }
+
         public static bool IsShellAuthRequired(string output)
         {
             if (string.IsNullOrWhiteSpace(output))
