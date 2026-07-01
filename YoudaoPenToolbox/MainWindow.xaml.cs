@@ -177,6 +177,18 @@ namespace YoudaoPenToolbox
             {
                 await _viewModel.EnsurePartitionsLoadedAsync();
             }
+            else if (tab.Header?.ToString() == "应用商店")
+            {
+                await _viewModel.EnsureStoreCatalogLoadedAsync();
+            }
+        }
+
+        private void StoreAppsDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (_viewModel.SelectedStoreApp != null)
+            {
+                _viewModel.OpenStoreDetail(_viewModel.SelectedStoreApp);
+            }
         }
 
         private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)

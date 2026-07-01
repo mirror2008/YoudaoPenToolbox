@@ -159,6 +159,7 @@
       <DependentUpon>RemoteFileViewerWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Models\AppThemePreference.cs" />
+    <Compile Include="Models\AppStoreItem.cs" />
     <Compile Include="Models\AmrPackageInfo.cs" />
     <Compile Include="Models\DeviceInfo.cs" />
     <Compile Include="Models\DeviceStatus.cs" />
@@ -197,6 +198,7 @@
     <Compile Include="Services\MiniAppCliResultParser.cs" />
     <Compile Include="Services\MiniAppCliOutputFormatter.cs" />
     <Compile Include="Services\MiniAppCliService.cs" />
+    <Compile Include="Services\AppStoreService.cs" />
     <Compile Include="Services\ScreenMirrorService.cs" />
     <Compile Include="Services\DeviceRemoteInputService.cs" />
     <Compile Include="Services\PartitionService.cs" />

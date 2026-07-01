@@ -34,6 +34,8 @@ namespace YoudaoPenToolbox.ViewModels
         private readonly PartitionService _partitionService;
         private readonly PartitionMountService _partitionMountService;
         private readonly ScreenMirrorService _screenMirrorService;
+        private readonly AppStoreService _appStoreService;
+        private bool _storeCatalogLoaded;
         private CancellationTokenSource _partitionTransferCts;
         private CancellationTokenSource _screenMirrorCts;
         private string _mirrorActiveSerial;
@@ -100,6 +102,9 @@ namespace YoudaoPenToolbox.ViewModels
         private bool _isScreenMirroring;
         private ImageSource _screenMirrorFrame;
         private string _screenMirrorStatsText = "尚未开始投屏";
+        private string _storeSummaryText = "从应用商店拉取应用列表";
+        private AppStoreItem _selectedStoreApp;
+        private bool _isStoreDetailOpen;
 
         public MainViewModel()
         {
@@ -118,6 +123,7 @@ namespace YoudaoPenToolbox.ViewModels
             _partitionMountService = new PartitionMountService(_adbService);
             _screenMirrorService = new ScreenMirrorService(_adbService, _cliService);
             _screenMirrorService.FrameReady += OnScreenMirrorFrameReady;
+            _appStoreService = new AppStoreService();
             _monitorService.StatusUpdated += (_, status) =>
             {
                 Application.Current.Dispatcher.Invoke(() => CurrentStatus = status);
@@ -137,6 +143,8 @@ namespace YoudaoPenToolbox.ViewModels
             InstalledApps = new ObservableCollection<InstalledApp>();
             RunningProcesses = new ObservableCollection<ProcessInfo>();
             RemoteFiles = new ObservableCollection<RemoteFileItem>();
+            StoreRkApps = new ObservableCollection<AppStoreItem>();
+            StoreCviApps = new ObservableCollection<AppStoreItem>();
             AvailableCommands = new ObservableCollection<MiniAppCommand>(_cliService.GetAvailableCommands());
             SelectedCommand = AvailableCommands.FirstOrDefault();
             UpdateCliUi();
@@ -194,6 +202,10 @@ namespace YoudaoPenToolbox.ViewModels
             StopScreenMirrorCommand = new RelayCommand(async () => await StopScreenMirrorAsync(), () => IsScreenMirroring);
             MirrorInjectHomeCommand = new RelayCommand(async () => await MirrorPressHomeAsync(), CanMirrorInjectKey);
             MirrorInjectBackCommand = new RelayCommand(async () => await MirrorPressBackAsync(), CanMirrorInjectKey);
+            RefreshStoreCatalogCommand = new RelayCommand(async () => await RefreshStoreCatalogAsync(), () => !IsBusy);
+            OpenStoreUploadPortalCommand = new RelayCommand(OpenStoreUploadPortal, () => !IsBusy);
+            InstallSelectedStoreAppCommand = new RelayCommand(async () => await InstallSelectedStoreAppAsync(), CanInstallSelectedStoreApp);
+            CloseStoreDetailCommand = new RelayCommand(CloseStoreDetail, () => IsStoreDetailOpen && !IsBusy);
         }
 
         public ObservableCollection<BlockPartitionInfo> BlockPartitions { get; } = new ObservableCollection<BlockPartitionInfo>();
@@ -201,6 +213,8 @@ namespace YoudaoPenToolbox.ViewModels
         public ObservableCollection<InstalledApp> InstalledApps { get; }
         public ObservableCollection<ProcessInfo> RunningProcesses { get; }
         public ObservableCollection<RemoteFileItem> RemoteFiles { get; }
+        public ObservableCollection<AppStoreItem> StoreRkApps { get; }
+        public ObservableCollection<AppStoreItem> StoreCviApps { get; }
         public ObservableCollection<MiniAppCommand> AvailableCommands { get; }
 
         public DeviceInfo SelectedDevice
@@ -605,6 +619,53 @@ namespace YoudaoPenToolbox.ViewModels
             private set => SetProperty(ref _screenMirrorStatsText, value);
         }
 
+        public string StoreSummaryText
+        {
+            get => _storeSummaryText;
+            private set => SetProperty(ref _storeSummaryText, value);
+        }
+
+        public bool IsStoreDetailOpen
+        {
+            get => _isStoreDetailOpen;
+            private set
+            {
+                if (SetProperty(ref _isStoreDetailOpen, value))
+                {
+                    CommandManagerHelper.Invalidate();
+                }
+            }
+        }
+
+        public AppStoreItem SelectedStoreApp
+        {
+            get => _selectedStoreApp;
+            set
+            {
+                if (SetProperty(ref _selectedStoreApp, value))
+                {
+                    CommandManagerHelper.Invalidate();
+                }
+            }
+        }
+
+        public void OpenStoreDetail(AppStoreItem item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            SelectedStoreApp = item;
+            IsStoreDetailOpen = true;
+            _ = LoadStoreIconSafeAsync(item);
+        }
+
+        public void CloseStoreDetail()
+        {
+            IsStoreDetailOpen = false;
+        }
+
         public RelayCommand RefreshDevicesCommand { get; }
         public RelayCommand<DeviceInfo> SelectDeviceCommand { get; }
         public RelayCommand ExecuteCommandCommand { get; }
@@ -658,6 +719,10 @@ namespace YoudaoPenToolbox.ViewModels
         public RelayCommand StopScreenMirrorCommand { get; }
         public RelayCommand MirrorInjectHomeCommand { get; }
         public RelayCommand MirrorInjectBackCommand { get; }
+        public RelayCommand RefreshStoreCatalogCommand { get; }
+        public RelayCommand OpenStoreUploadPortalCommand { get; }
+        public RelayCommand InstallSelectedStoreAppCommand { get; }
+        public RelayCommand CloseStoreDetailCommand { get; }
 
         public string PartitionSearchText
         {
@@ -1275,6 +1340,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             UpdateAppsSummary();
+            UpdateAllStoreInstalledStates();
         }
 
         private void UpdateAppsSummary()
@@ -1704,6 +1770,188 @@ namespace YoudaoPenToolbox.ViewModels
                 ? "请先连接并选择设备"
                 : "尚未运行兼容性检测";
             CompatibilityReport = string.Empty;
+        }
+
+        public async Task EnsureStoreCatalogLoadedAsync()
+        {
+            if (_storeCatalogLoaded)
+            {
+                return;
+            }
+
+            await RefreshStoreCatalogAsync().ConfigureAwait(true);
+        }
+
+        public async Task RefreshStoreCatalogAsync()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            IsBusy = true;
+            StoreSummaryText = "正在从应用商店拉取列表...";
+            try
+            {
+                var items = await _appStoreService.GetCatalogAsync().ConfigureAwait(true);
+                StoreRkApps.Clear();
+                StoreCviApps.Clear();
+                foreach (var item in items)
+                {
+                    MarkStoreAppInstalledState(item);
+                    if (item.IsCvi)
+                    {
+                        StoreCviApps.Add(item);
+                    }
+                    else
+                    {
+                        StoreRkApps.Add(item);
+                    }
+                    _ = LoadStoreIconSafeAsync(item);
+                }
+
+                _storeCatalogLoaded = true;
+                var total = StoreRkApps.Count + StoreCviApps.Count;
+                StoreSummaryText = total > 0
+                    ? $"RK {StoreRkApps.Count} 个 · CVI {StoreCviApps.Count} 个，双击应用查看详情并安装（单包 ≤200MB）"
+                    : "商店暂无应用，可点击「我要上传应用」发布";
+            }
+            catch (Exception ex)
+            {
+                StoreSummaryText = $"拉取失败: {ex.Message}";
+                Growl.Warning($"应用商店拉取失败: {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public void OpenStoreUploadPortal()
+        {
+            try
+            {
+                _appStoreService.OpenUploadPortal();
+            }
+            catch (Exception ex)
+            {
+                Growl.Warning($"无法打开上传页: {ex.Message}");
+            }
+        }
+
+        public async Task InstallStoreAppAsync(AppStoreItem item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            if (SelectedDevice == null)
+            {
+                Growl.Warning("请先连接并选择设备");
+                return;
+            }
+
+            if (NeedsAdbUnlock)
+            {
+                Growl.Warning("请先解锁 ADB");
+                return;
+            }
+
+            if (IsBusy)
+            {
+                return;
+            }
+
+            IsBusy = true;
+            try
+            {
+                StatusMessage = $"正在下载 {item.Name}...";
+                var progress = new Progress<DownloadProgress>(p =>
+                {
+                    StatusMessage = p.Percent.HasValue
+                        ? $"正在下载 {item.Name} ({p.Percent:F0}%)"
+                        : $"正在下载 {item.Name}...";
+                });
+
+                var localPath = await _appStoreService
+                    .DownloadAppAsync(item, progress)
+                    .ConfigureAwait(true);
+
+                StatusMessage = $"正在安装 {item.Name}...";
+                var installed = await InstallAmrAsync(localPath, skipConfirmation: false, manageBusyState: false)
+                    .ConfigureAwait(true);
+
+                if (installed)
+                {
+                    MarkStoreAppInstalledState(item);
+                }
+            }
+            catch (Exception ex)
+            {
+                Growl.Error($"安装失败: {ex.Message}");
+                StatusMessage = ex.Message;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
+        public async Task InstallSelectedStoreAppAsync()
+        {
+            await InstallStoreAppAsync(SelectedStoreApp).ConfigureAwait(true);
+        }
+
+        private bool CanInstallSelectedStoreApp()
+        {
+            return IsStoreDetailOpen
+                && SelectedStoreApp != null
+                && !SelectedStoreApp.IsInstalled
+                && SelectedDevice != null
+                && !IsBusy
+                && !NeedsAdbUnlock;
+        }
+
+        private async Task LoadStoreIconSafeAsync(AppStoreItem item)
+        {
+            try
+            {
+                await _appStoreService.LoadIconAsync(item).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        private void MarkStoreAppInstalledState(AppStoreItem item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.AppId))
+            {
+                item.IsInstalled = false;
+                return;
+            }
+
+            item.IsInstalled = _allInstalledApps.Any(app =>
+                !string.IsNullOrWhiteSpace(app.AppId)
+                && string.Equals(app.AppId, item.AppId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void UpdateAllStoreInstalledStates()
+        {
+            foreach (var item in StoreRkApps)
+            {
+                MarkStoreAppInstalledState(item);
+            }
+            foreach (var item in StoreCviApps)
+            {
+                MarkStoreAppInstalledState(item);
+            }
         }
 
         public async Task<bool> InstallAmrAsync(string localPath, bool skipConfirmation = false, bool manageBusyState = true)

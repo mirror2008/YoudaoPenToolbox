@@ -546,6 +546,198 @@
                         </ScrollViewer>
                     </TabItem>
 
+                    <TabItem Header="应用商店">
+                        <Grid Margin="0,4,0,0">
+                            <!-- 应用列表 -->
+                            <Grid Visibility="{Binding IsStoreDetailOpen, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*" MinHeight="224"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="{Binding StoreSummaryText}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+
+                                <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                                    <Button Content="刷新商店" Command="{Binding RefreshStoreCatalogCommand}"
+                                            Margin="0,0,8,8" Width="100" Height="36"/>
+                                    <Button Content="我要上传应用" Command="{Binding OpenStoreUploadPortalCommand}"
+                                            Style="{StaticResource ButtonPrimary}"
+                                            Margin="0,0,8,8" Width="120" Height="36"
+                                            ToolTip="打开浏览器，注册登录后自助上传 .amr"/>
+                                </WrapPanel>
+
+                                <Grid Grid.Row="2" MinHeight="224">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Grid Grid.Column="0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="RK · GStreamer（rk-gst）" FontWeight="SemiBold" Margin="0,0,0,6"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <DataGrid Grid.Row="1" x:Name="StoreRkAppsDataGrid"
+                                                  ItemsSource="{Binding StoreRkApps}"
+                                                  SelectedItem="{Binding SelectedStoreApp}"
+                                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                                  HeadersVisibility="Column" CanUserAddRows="False"
+                                                  CanUserSortColumns="True" GridLinesVisibility="Horizontal"
+                                                  SelectionUnit="FullRow" SelectionMode="Single"
+                                                  MouseDoubleClick="StoreAppsDataGrid_MouseDoubleClick"
+                                                  AlternatingRowBackground="{DynamicResource ThirdlyRegionBrush}"
+                                                  Background="{DynamicResource RegionBrush}"
+                                                  BorderBrush="{DynamicResource BorderBrush}"
+                                                  RowBackground="{DynamicResource RegionBrush}">
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="图标" Width="48" IsReadOnly="True">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Image Source="{Binding Icon}" Width="28" Height="28" Stretch="Uniform"
+                                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                                                <DataGridTextColumn Header="型号" Binding="{Binding PenModel}" Width="64"/>
+                                                <DataGridTextColumn Header="简介" Binding="{Binding DescriptionShort}" Width="88"/>
+                                                <DataGridTextColumn Header="上传者" Binding="{Binding UploaderDisplay}" Width="72"/>
+                                                <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="56"/>
+                                                <DataGridTextColumn Header="大小" Binding="{Binding SizeDisplay}" Width="72"/>
+                                                <DataGridTextColumn Header="已安装" Binding="{Binding IsInstalled, Converter={StaticResource BoolToYesNo}}" Width="56"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+
+                                    <Grid Grid.Column="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Text="CVI · FFmpeg（cvi-ffmpeg）" FontWeight="SemiBold" Margin="0,0,0,6"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        <DataGrid Grid.Row="1" x:Name="StoreCviAppsDataGrid"
+                                                  ItemsSource="{Binding StoreCviApps}"
+                                                  SelectedItem="{Binding SelectedStoreApp}"
+                                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                                  HeadersVisibility="Column" CanUserAddRows="False"
+                                                  CanUserSortColumns="True" GridLinesVisibility="Horizontal"
+                                                  SelectionUnit="FullRow" SelectionMode="Single"
+                                                  MouseDoubleClick="StoreAppsDataGrid_MouseDoubleClick"
+                                                  AlternatingRowBackground="{DynamicResource ThirdlyRegionBrush}"
+                                                  Background="{DynamicResource RegionBrush}"
+                                                  BorderBrush="{DynamicResource BorderBrush}"
+                                                  RowBackground="{DynamicResource RegionBrush}">
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="图标" Width="48" IsReadOnly="True">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Image Source="{Binding Icon}" Width="28" Height="28" Stretch="Uniform"
+                                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                                                <DataGridTextColumn Header="型号" Binding="{Binding PenModel}" Width="64"/>
+                                                <DataGridTextColumn Header="简介" Binding="{Binding DescriptionShort}" Width="88"/>
+                                                <DataGridTextColumn Header="上传者" Binding="{Binding UploaderDisplay}" Width="72"/>
+                                                <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="56"/>
+                                                <DataGridTextColumn Header="大小" Binding="{Binding SizeDisplay}" Width="72"/>
+                                                <DataGridTextColumn Header="已安装" Binding="{Binding IsInstalled, Converter={StaticResource BoolToYesNo}}" Width="56"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+
+                            <!-- 应用详情（微软商店风格） -->
+                            <Grid Visibility="{Binding IsStoreDetailOpen, Converter={StaticResource BoolToVis}}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Button Grid.Row="0" Content="← 返回商店" Command="{Binding CloseStoreDetailCommand}"
+                                        HorizontalAlignment="Left" Margin="0,0,0,12" Width="108" Height="34"/>
+
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled" Margin="0,0,16,0">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                                <Border Width="96" Height="96" CornerRadius="16"
+                                                        Background="{DynamicResource SecondaryRegionBrush}"
+                                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                                    <Image Source="{Binding SelectedStoreApp.Icon}" Stretch="Uniform" Margin="10"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                </Border>
+                                                <StackPanel Margin="20,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding SelectedStoreApp.Name}" FontSize="24" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                                    <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource SecondaryTextBrush}">
+                                                        <Run Text="{Binding SelectedStoreApp.PlatformDisplay, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding SelectedStoreApp.Version, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding SelectedStoreApp.SizeDisplay, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}">
+                                                        <Run Text="适用型号："/>
+                                                        <Run Text="{Binding SelectedStoreApp.PenModel, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}">
+                                                        <Run Text="上传者："/>
+                                                        <Run Text="{Binding SelectedStoreApp.UploaderDisplay, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource SecondaryTextBrush}">
+                                                        <Run Text="上传时间："/>
+                                                        <Run Text="{Binding SelectedStoreApp.UploadedAtDisplay, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <TextBlock Text="应用简介" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                            <TextBlock Text="{Binding SelectedStoreApp.DescriptionDisplay}"
+                                                       TextWrapping="Wrap" LineHeight="22" FontSize="14"
+                                                       Foreground="{DynamicResource PrimaryTextBrush}"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" MinWidth="132">
+                                        <Button Command="{Binding InstallSelectedStoreAppCommand}"
+                                                MinWidth="132" Height="44" FontSize="15" Padding="20,0">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource ButtonPrimary}">
+                                                    <Setter Property="Content" Value="安装"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedStoreApp.IsInstalled}" Value="True">
+                                                            <Setter Property="Content" Value="已安装"/>
+                                                            <Setter Property="IsEnabled" Value="False"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <TextBlock Text="下载并安装到已连接设备" TextWrapping="Wrap" TextAlignment="Center"
+                                                   Margin="0,10,0,0" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </TabItem>
+
                     <TabItem Header="miniapp_cli">
                         <ScrollViewer VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled"
