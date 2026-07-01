@@ -7,6 +7,7 @@ dist/
 *.cache
 error.log
 adb_reverse_analysis/
+store-server/
 *.code-workspace
 scripts/
 ThemeSwitchTest.exe
