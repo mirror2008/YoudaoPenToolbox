@@ -13,3 +13,9 @@ scripts/
 ThemeSwitchTest.exe
 Thumbs.db
 Desktop.ini
+YoudaoPenToolbox_v*.zip
+YoudaoPenToolbox/heap_chunks.jsonl
+miniapp_9307_analysis/
+mtp_reverse_analysis/
+usb_reverse_analysis/
+YoudaoPenToolbox.Android/
