@@ -45,11 +45,17 @@ namespace YoudaoPenToolbox.Helpers
                     return;
                 }
 
+                state.PendingDialogResult = window.DialogResult;
                 e.Cancel = true;
                 var root = FindRoot(window);
                 PlayClose(window, root, () =>
                 {
                     state.IsClosingAnimated = true;
+                    if (state.PendingDialogResult.HasValue)
+                    {
+                        window.DialogResult = state.PendingDialogResult;
+                    }
+
                     window.Close();
                 });
             };
@@ -248,6 +254,7 @@ namespace YoudaoPenToolbox.Helpers
         private sealed class DialogAnimationState
         {
             public bool IsClosingAnimated { get; set; }
+            public bool? PendingDialogResult { get; set; }
         }
     }
 }

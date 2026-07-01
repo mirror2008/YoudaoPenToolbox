@@ -194,7 +194,14 @@ namespace YoudaoPenToolbox.Services
                     UseShellExecute = true,
                     CreateNoWindow = false
                 };
-                Process.Start(psi);
+                using (var process = Process.Start(psi))
+                {
+                    if (process == null)
+                    {
+                        throw new InvalidOperationException("无法启动 ADB 交互式 Shell");
+                    }
+                }
+
                 return "已打开 ADB 交互式 Shell 窗口";
             });
         }
@@ -206,8 +213,25 @@ namespace YoudaoPenToolbox.Services
                 : $"-s {serial} push \"{localPath}\" \"{remotePath}\"";
 
             var output = await RunAdbAsync(args, timeoutMs).ConfigureAwait(false);
-            return output.IndexOf("error", StringComparison.OrdinalIgnoreCase) < 0
-                   && output.IndexOf("failed", StringComparison.OrdinalIgnoreCase) < 0;
+            return IsPushOutputSuccessful(output);
+        }
+
+        private static bool IsPushOutputSuccessful(string output)
+        {
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return false;
+            }
+
+            if (output.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("failed", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
+            return output.IndexOf("pushed", StringComparison.OrdinalIgnoreCase) >= 0
+                   || output.IndexOf("file pushed", StringComparison.OrdinalIgnoreCase) >= 0
+                   || output.IndexOf("1 file pushed", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public async Task<bool> PullFileAsync(string serial, string remotePath, string localPath)
@@ -216,8 +240,33 @@ namespace YoudaoPenToolbox.Services
                 ? $"pull \"{remotePath}\" \"{localPath}\""
                 : $"-s {serial} pull \"{remotePath}\" \"{localPath}\"";
 
-            var output = await RunAdbAsync(args).ConfigureAwait(false);
-            return output.IndexOf("error", StringComparison.OrdinalIgnoreCase) < 0;
+            try
+            {
+                var output = await RunAdbAsync(args).ConfigureAwait(false);
+                return IsPullOutputSuccessful(output);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsPullOutputSuccessful(string output)
+        {
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return false;
+            }
+
+            if (output.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0
+                || output.IndexOf("failed", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
+            return output.IndexOf("pulled", StringComparison.OrdinalIgnoreCase) >= 0
+                   || output.IndexOf("file pulled", StringComparison.OrdinalIgnoreCase) >= 0
+                   || output.IndexOf("1 file pulled", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public async Task<string> ReadRemoteTextFileAsync(string serial, string remotePath)
@@ -257,10 +306,22 @@ namespace YoudaoPenToolbox.Services
 
         public Task<string> RunAdbAsync(string arguments, int timeoutMs = 120000)
         {
-            return Task.Run(() => ExecuteAdbProcess(arguments, timeoutMs));
+            return Task.Run(() =>
+            {
+                var output = ExecuteAdbProcess(arguments, timeoutMs, out var exitCode);
+                if (exitCode != 0)
+                {
+                    throw new InvalidOperationException(
+                        string.IsNullOrWhiteSpace(output)
+                            ? $"ADB 命令失败 (exit {exitCode}): adb {arguments}"
+                            : $"ADB 命令失败 (exit {exitCode}): {output}");
+                }
+
+                return output;
+            });
         }
 
-        private string ExecuteAdbProcess(string arguments, int timeoutMs)
+        private string ExecuteAdbProcess(string arguments, int timeoutMs, out int exitCode)
         {
             var psi = new ProcessStartInfo
             {
@@ -299,6 +360,7 @@ namespace YoudaoPenToolbox.Services
 
                 Task.WaitAll(outputTask, errorTask);
 
+                exitCode = process.ExitCode;
                 var output = outputTask.Result;
                 var error = errorTask.Result;
                 var combined = string.IsNullOrWhiteSpace(output) ? error.Trim() : output.Trim();

@@ -269,6 +269,7 @@
                     <TextBlock Text="设备列表" FontWeight="SemiBold" FontSize="14" DockPanel.Dock="Top" Margin="4,0,0,12"/>
                     <ListBox ItemsSource="{Binding Devices}"
                              SelectedItem="{Binding SelectedDevice}"
+                             IsEnabled="{Binding IsNotBusy}"
                              BorderThickness="0"
                              Background="Transparent"
                              ScrollViewer.VerticalScrollBarVisibility="Auto">

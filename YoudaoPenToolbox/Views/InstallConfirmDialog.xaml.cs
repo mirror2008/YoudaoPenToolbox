@@ -44,8 +44,11 @@ namespace YoudaoPenToolbox.Views
         public AmrPackageInfo Package { get; }
         public string DeviceName { get; }
 
+        public bool Confirmed { get; private set; }
+
         private void Install_Click(object sender, RoutedEventArgs e)
         {
+            Confirmed = true;
             DialogResult = true;
             Close();
         }

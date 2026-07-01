@@ -11,8 +11,8 @@
                     </ResourceDictionary.MergedDictionaries>
                 </ResourceDictionary>
                 <ResourceDictionary Source="Resources/AppAnimations.xaml"/>
-                <ResourceDictionary Source="Resources/DialogStyles.xaml"/>
                 <ResourceDictionary Source="Resources/AppStyles.xaml"/>
+                <ResourceDictionary Source="Resources/DialogStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

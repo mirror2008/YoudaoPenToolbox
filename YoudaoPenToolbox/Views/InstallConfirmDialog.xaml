@@ -6,7 +6,7 @@
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        ShowInTaskbar="True"
+        ShowInTaskbar="False"
         Topmost="True"
         FontFamily="Segoe UI, Microsoft YaHei UI"
         Background="{DynamicResource RegionBrush}">

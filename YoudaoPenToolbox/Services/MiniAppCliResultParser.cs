@@ -42,8 +42,6 @@ namespace YoudaoPenToolbox.Services
 
     public static class MiniAppCliResultParser
     {
-        private static readonly Regex JsonObjectRegex = new Regex(@"\{[^{}]*\}", RegexOptions.Compiled);
-
         public static MiniAppCliResult ParseInstall(string rawOutput)
         {
             return Parse(rawOutput);
@@ -77,7 +75,6 @@ namespace YoudaoPenToolbox.Services
             }
             catch
             {
-
             }
 
             return result;
@@ -85,8 +82,60 @@ namespace YoudaoPenToolbox.Services
 
         private static string ExtractJsonObject(string text)
         {
-            var match = JsonObjectRegex.Match(text);
-            return match.Success ? match.Value : null;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return null;
+            }
+
+            var start = text.LastIndexOf('{');
+            while (start >= 0)
+            {
+                var depth = 0;
+                for (var i = start; i < text.Length; i++)
+                {
+                    var ch = text[i];
+                    if (ch == '{')
+                    {
+                        depth++;
+                    }
+                    else if (ch == '}')
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            return text.Substring(start, i - start + 1);
+                        }
+                    }
+                }
+
+                start = text.LastIndexOf('{', start - 1);
+            }
+
+            return null;
+        }
+
+        public static bool LooksLikeCliSuccess(string rawOutput, MiniAppCliResult parsed)
+        {
+            if (parsed != null && parsed.HasJson)
+            {
+                return parsed.IsSuccess;
+            }
+
+            if (string.IsNullOrWhiteSpace(rawOutput))
+            {
+                return false;
+            }
+
+            if (rawOutput.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0
+                || rawOutput.IndexOf("fail", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
+            return rawOutput.IndexOf("\"ret\":0", StringComparison.OrdinalIgnoreCase) >= 0
+                   || rawOutput.IndexOf("ret=0", StringComparison.OrdinalIgnoreCase) >= 0
+                   || rawOutput.IndexOf("install ok", StringComparison.OrdinalIgnoreCase) >= 0
+                   || rawOutput.IndexOf("success", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static int? ReadInt(JToken token)

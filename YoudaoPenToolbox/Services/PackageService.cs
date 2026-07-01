@@ -72,7 +72,10 @@ namespace YoudaoPenToolbox.Services
                         }
                     }
 
-                    return apps.OrderByDescending(a => a.SizeKb).ThenBy(a => a.Name).ToList();
+                    if (apps.Count > 0)
+                    {
+                        return apps.OrderByDescending(a => a.SizeKb).ThenBy(a => a.Name).ToList();
+                    }
                 }
                 catch (Exception ex)
                 {

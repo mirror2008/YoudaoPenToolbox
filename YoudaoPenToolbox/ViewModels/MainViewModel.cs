@@ -35,6 +35,7 @@ namespace YoudaoPenToolbox.ViewModels
         private readonly PartitionMountService _partitionMountService;
         private readonly ScreenMirrorService _screenMirrorService;
         private readonly AppStoreService _appStoreService;
+        private readonly SemaphoreSlim _installLock = new SemaphoreSlim(1, 1);
         private bool _storeCatalogLoaded;
         private CancellationTokenSource _partitionTransferCts;
         private CancellationTokenSource _screenMirrorCts;
@@ -154,11 +155,11 @@ namespace YoudaoPenToolbox.ViewModels
             ExecuteCommandCommand = new RelayCommand(async () => await ExecuteSelectedCommandAsync(), CanExecuteCommand);
             RefreshAppsCommand = new RelayCommand(async () => await RefreshAppsAsync(), () => SelectedDevice != null && !IsBusy);
             RefreshAppSizesCommand = new RelayCommand(async () => await RefreshAppSizesAsync(), () => SelectedDevice != null && !IsBusy);
-            InstallDroppedFileCommand = new RelayCommand<string>(async path => await InstallAmrAsync(path), _ => SelectedDevice != null && !IsBusy);
+            InstallDroppedFileCommand = new AsyncRelayCommand<string>(path => InstallAmrAsync(path), _ => SelectedDevice != null && !IsBusy);
             BrowseInstallAmrCommand = new RelayCommand(BrowseInstallAmr, () => SelectedDevice != null && !IsBusy);
             RunCompatibilityCheckCommand = new RelayCommand(async () => await RunCompatibilityCheckAsync(), () => SelectedDevice != null && !IsBusy);
-            InstallLoliAppCommand = new RelayCommand(async () => await InstallLoliAppAsync(), () => SelectedDevice != null && !IsBusy);
-            UninstallAppCommand = new RelayCommand(async () => await UninstallSelectedAppAsync(), () => SelectedApp != null && SelectedDevice != null && !IsBusy);
+            InstallLoliAppCommand = new AsyncRelayCommand(InstallLoliAppAsync, () => SelectedDevice != null && !IsBusy);
+            UninstallAppCommand = new AsyncRelayCommand(UninstallSelectedAppAsync, () => SelectedApp != null && SelectedDevice != null && !IsBusy);
             StartAppCommand = new RelayCommand(async () => await StartSelectedAppAsync(), () => SelectedApp != null && !IsBusy);
             BackupSelectedAppCommand = new RelayCommand(async () => await BackupSelectedAppAsync(), () => SelectedApp != null && SelectedDevice != null && !IsBusy);
             CaptureScreenCommand = new RelayCommand(async () => await CaptureScreenAsync(), () => SelectedDevice != null && !IsBusy);
@@ -204,7 +205,7 @@ namespace YoudaoPenToolbox.ViewModels
             MirrorInjectBackCommand = new RelayCommand(async () => await MirrorPressBackAsync(), CanMirrorInjectKey);
             RefreshStoreCatalogCommand = new RelayCommand(async () => await RefreshStoreCatalogAsync(), () => !IsBusy);
             OpenStoreUploadPortalCommand = new RelayCommand(OpenStoreUploadPortal, () => !IsBusy);
-            InstallSelectedStoreAppCommand = new RelayCommand(async () => await InstallSelectedStoreAppAsync(), CanInstallSelectedStoreApp);
+            InstallSelectedStoreAppCommand = new AsyncRelayCommand(InstallSelectedStoreAppAsync, CanInstallSelectedStoreApp);
             CloseStoreDetailCommand = new RelayCommand(CloseStoreDetail, () => IsStoreDetailOpen && !IsBusy);
         }
 
@@ -290,10 +291,13 @@ namespace YoudaoPenToolbox.ViewModels
             {
                 if (SetProperty(ref _isBusy, value))
                 {
+                    OnPropertyChanged(nameof(IsNotBusy));
                     CommandManagerHelper.Invalidate();
                 }
             }
         }
+
+        public bool IsNotBusy => !IsBusy;
 
         public bool HasSelectedDevice => SelectedDevice != null;
 
@@ -671,11 +675,11 @@ namespace YoudaoPenToolbox.ViewModels
         public RelayCommand ExecuteCommandCommand { get; }
         public RelayCommand RefreshAppsCommand { get; }
         public RelayCommand RefreshAppSizesCommand { get; }
-        public RelayCommand<string> InstallDroppedFileCommand { get; }
+        public AsyncRelayCommand<string> InstallDroppedFileCommand { get; }
         public RelayCommand BrowseInstallAmrCommand { get; }
         public RelayCommand RunCompatibilityCheckCommand { get; }
-        public RelayCommand InstallLoliAppCommand { get; }
-        public RelayCommand UninstallAppCommand { get; }
+        public AsyncRelayCommand InstallLoliAppCommand { get; }
+        public AsyncRelayCommand UninstallAppCommand { get; }
         public RelayCommand StartAppCommand { get; }
         public RelayCommand BackupSelectedAppCommand { get; }
         public RelayCommand CaptureScreenCommand { get; }
@@ -721,7 +725,7 @@ namespace YoudaoPenToolbox.ViewModels
         public RelayCommand MirrorInjectBackCommand { get; }
         public RelayCommand RefreshStoreCatalogCommand { get; }
         public RelayCommand OpenStoreUploadPortalCommand { get; }
-        public RelayCommand InstallSelectedStoreAppCommand { get; }
+        public AsyncRelayCommand InstallSelectedStoreAppCommand { get; }
         public RelayCommand CloseStoreDetailCommand { get; }
 
         public string PartitionSearchText
@@ -1270,20 +1274,29 @@ namespace YoudaoPenToolbox.ViewModels
             }
         }
 
-        private async Task RefreshAppsAsync()
+        private async Task RefreshAppsAsync(bool manageBusyState = true, bool includeSizes = true)
         {
             if (SelectedDevice == null)
             {
                 return;
             }
 
-            IsBusy = true;
-            StatusMessage = "正在加载应用列表与占用大小...";
+            if (manageBusyState)
+            {
+                IsBusy = true;
+            }
+
+            StatusMessage = includeSizes
+                ? "正在加载应用列表与占用大小..."
+                : "正在刷新应用列表...";
             try
             {
-                _allInstalledApps = (await _packageService.GetInstalledAppsAsync(SelectedDevice.Serial).ConfigureAwait(true)).ToList();
+                _allInstalledApps = (await _packageService
+                    .GetInstalledAppsAsync(SelectedDevice.Serial, includeSizes)
+                    .ConfigureAwait(true)).ToList();
                 ApplyAppFilterLocal();
                 UpdateAppsSummary();
+                UpdateAllStoreInstalledStates();
 
                 if (_allInstalledApps.Count == 0 && !string.IsNullOrWhiteSpace(_packageService.LastError))
                 {
@@ -1301,7 +1314,10 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
-                IsBusy = false;
+                if (manageBusyState)
+                {
+                    IsBusy = false;
+                }
             }
         }
 
@@ -1605,7 +1621,8 @@ namespace YoudaoPenToolbox.ViewModels
                 Owner = Application.Current.MainWindow
             };
             Application.Current?.MainWindow?.Activate();
-            if (choiceDialog.ShowDialog() != true || choiceDialog.Choice == Views.LoliPlatformChoice.None)
+            choiceDialog.ShowDialog();
+            if (choiceDialog.Choice == Views.LoliPlatformChoice.None)
             {
                 StatusMessage = "已取消 Loli 安装";
                 return;
@@ -1786,6 +1803,7 @@ namespace YoudaoPenToolbox.ViewModels
         {
             if (IsBusy)
             {
+                Growl.Info("当前有任务进行中，请稍后再刷新商店");
                 return;
             }
 
@@ -1879,7 +1897,7 @@ namespace YoudaoPenToolbox.ViewModels
                     .ConfigureAwait(true);
 
                 StatusMessage = $"正在安装 {item.Name}...";
-                var installed = await InstallAmrAsync(localPath, skipConfirmation: false, manageBusyState: false)
+                var installed = await InstallAmrAsync(localPath, skipConfirmation: true, manageBusyState: false)
                     .ConfigureAwait(true);
 
                 if (installed)
@@ -1961,48 +1979,65 @@ namespace YoudaoPenToolbox.ViewModels
                 return false;
             }
 
-            var fileName = System.IO.Path.GetFileName(localPath);
-            if (!fileName.EndsWith(".amr", StringComparison.OrdinalIgnoreCase))
+            if (!await _installLock.WaitAsync(0).ConfigureAwait(true))
             {
-                Growl.Warning("仅支持 .amr 格式的小程序包");
+                Growl.Warning("已有安装任务进行中，请稍候");
                 return false;
             }
 
-            if (!skipConfirmation)
+            var lockReleased = false;
+            try
             {
+                if (manageBusyState)
+                {
+                    IsBusy = true;
+                }
+
+                var fileName = System.IO.Path.GetFileName(localPath);
+                if (!fileName.EndsWith(".amr", StringComparison.OrdinalIgnoreCase))
+                {
+                    Growl.Warning("仅支持 .amr 格式的小程序包");
+                    return false;
+                }
+
                 AmrPackageInfo packageInfo = null;
+                string targetAppId = null;
                 try
                 {
                     packageInfo = AmrPackageService.Parse(localPath);
-                    var dialog = new Views.InstallConfirmDialog(packageInfo, SelectedDevice.DisplayName)
+                    targetAppId = packageInfo.AppId;
+                    if (!skipConfirmation)
                     {
-                        Owner = Application.Current.MainWindow
-                    };
+                        var dialog = new Views.InstallConfirmDialog(packageInfo, SelectedDevice.DisplayName)
+                        {
+                            Owner = Application.Current.MainWindow
+                        };
 
-                    Application.Current?.MainWindow?.Activate();
-                    if (dialog.ShowDialog() != true)
-                    {
-                        return false;
+                        Application.Current?.MainWindow?.Activate();
+                        dialog.ShowDialog();
+                        if (!dialog.Confirmed)
+                        {
+                            return false;
+                        }
                     }
                 }
                 finally
                 {
                     packageInfo?.Dispose();
                 }
-            }
 
-            if (manageBusyState)
-            {
-                IsBusy = true;
-            }
+                var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName()}";
+                var remoteUploaded = false;
+                var deviceSerial = SelectedDevice.Serial;
+                var installSucceeded = false;
 
-            StatusMessage = $"正在上传 {fileName} 到设备...";
-            var remotePath = $"/userdisk/{AppBackupService.BuildSafeRemoteInstallName()}";
-            var remoteUploaded = false;
-            var deviceSerial = SelectedDevice.Serial;
-            var installSucceeded = false;
-            try
-            {
+                if (!string.IsNullOrWhiteSpace(targetAppId) && targetAppId != "-")
+                {
+                    await PrepareExistingAppForInstallAsync(deviceSerial, targetAppId, skipConfirmation)
+                        .ConfigureAwait(true);
+                }
+
+                StatusMessage = $"正在上传 {fileName} 到设备...";
                 var pushed = await _adbService.PushFileAsync(deviceSerial, localPath, remotePath);
                 if (!pushed)
                 {
@@ -2011,60 +2046,103 @@ namespace YoudaoPenToolbox.ViewModels
 
                 remoteUploaded = true;
                 StatusMessage = "正在设备安装 AMR，请勿断开...";
-                var result = await _cliService.ExecuteRawAsync(deviceSerial, $"install {remotePath}", 300000);
+                var quotedPath = RemotePathHelper.ShellQuote(remotePath);
+                var result = await _cliService.ExecuteRawAsync(deviceSerial, $"install {quotedPath}", 180000);
                 var installResult = MiniAppCliResultParser.ParseInstall(result);
                 var formatted = MiniAppCliOutputFormatter.Format("install", result);
                 CommandOutput = $"[{DateTime.Now:HH:mm:ss}] install {fileName}\r\n{formatted}\r\n\r\n{CommandOutput}";
 
-                if (installResult.HasJson)
+                if (MiniAppCliResultParser.LooksLikeCliSuccess(result, installResult))
                 {
-                    if (installResult.IsSuccess)
-                    {
-                        Growl.Success(installResult.Summary ?? "安装完成");
-                        StatusMessage = "安装成功";
-                        installSucceeded = true;
-                    }
-                    else
-                    {
-                        Growl.Warning(installResult.Summary ?? "安装失败，请查看输出");
-                        StatusMessage = installResult.Summary ?? "安装失败";
-                    }
-                }
-                else if (result.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0
-                    || result.IndexOf("fail", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    Growl.Warning("安装可能未成功，请查看输出");
-                    StatusMessage = "安装可能未成功";
-                }
-                else
-                {
-                    Growl.Success("安装完成");
+                    Growl.Success(installResult.Summary ?? "安装完成");
                     StatusMessage = "安装成功";
                     installSucceeded = true;
                 }
+                else if (installResult.HasJson)
+                {
+                    Growl.Warning(installResult.Summary ?? "安装失败，请查看输出");
+                    StatusMessage = installResult.Summary ?? "安装失败";
+                }
+                else
+                {
+                    Growl.Warning("安装结果不确定，请查看 miniapp_cli 输出");
+                    StatusMessage = "安装结果不确定";
+                }
 
-                await RefreshAppsAsync();
-            }
-            catch (Exception ex)
-            {
-                Growl.Error($"安装失败: {ex.Message}");
-                StatusMessage = ex.Message;
-            }
-            finally
-            {
                 if (remoteUploaded && !string.IsNullOrWhiteSpace(deviceSerial))
                 {
                     await AppBackupService.TryDeleteRemoteFileAsync(_adbService, deviceSerial, remotePath)
                         .ConfigureAwait(true);
                 }
 
+                if (installSucceeded && string.Equals(deviceSerial, SelectedDevice?.Serial, StringComparison.OrdinalIgnoreCase))
+                {
+                    await RefreshAppsAsync(manageBusyState: false, includeSizes: false).ConfigureAwait(true);
+                }
+
+                return installSucceeded;
+            }
+            catch (Exception ex)
+            {
+                Growl.Error($"安装失败: {ex.Message}");
+                StatusMessage = ex.Message;
+                return false;
+            }
+            finally
+            {
                 if (manageBusyState)
                 {
                     IsBusy = false;
                 }
+
+                if (!lockReleased)
+                {
+                    _installLock.Release();
+                    lockReleased = true;
+                }
+            }
+        }
+
+        private async Task PrepareExistingAppForInstallAsync(string serial, string appId, bool silentOverwrite)
+        {
+            var existing = _allInstalledApps.FirstOrDefault(app =>
+                !string.IsNullOrWhiteSpace(app.AppId)
+                && string.Equals(app.AppId, appId, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
+            {
+                return;
             }
 
-            return installSucceeded;
+            if (!silentOverwrite)
+            {
+                var overwrite = AppMessageBox.Show(
+                    $"设备上已安装 [{existing.Name}]（AppId: {appId}）。\n\n是否先卸载旧版本再安装？",
+                    "覆盖安装",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (overwrite != MessageBoxResult.Yes)
+                {
+                    throw new InvalidOperationException("已取消安装");
+                }
+            }
+
+            StatusMessage = $"正在卸载旧版 [{existing.Name}]...";
+            var uninstallOutput = await _cliService.ExecuteRawAsync(serial, $"uninstall {appId}", 60000).ConfigureAwait(true);
+            var parsed = MiniAppCliResultParser.Parse(uninstallOutput);
+            if (!MiniAppCliResultParser.LooksLikeCliSuccess(uninstallOutput, parsed))
+            {
+                var message = parsed.Summary ?? "卸载旧版本可能未成功";
+                if (silentOverwrite)
+                {
+                    Growl.Warning(message + "，将继续尝试安装");
+                }
+                else
+                {
+                    throw new InvalidOperationException(message);
+                }
+            }
+
+            await Task.Delay(500).ConfigureAwait(true);
         }
 
         private async Task UninstallSelectedAppAsync()
@@ -2074,105 +2152,113 @@ namespace YoudaoPenToolbox.ViewModels
                 return;
             }
 
-            var app = SelectedApp;
-            string backupPath = null;
-
-            if (app.IsProtectedSystemApp)
+            IsBusy = true;
+            try
             {
-                if (!ConfirmProtectedSystemUninstall(app))
-                {
-                    return;
-                }
+                var app = SelectedApp;
+                string backupPath = null;
 
-                backupPath = AppBackupService.BuildAutoBackupPath(app);
-                var backupResult = await BackupAppInternalAsync(app, backupPath, "受保护系统应用卸载前自动备份").ConfigureAwait(true);
-                if (!backupResult.Success)
+                if (app.IsProtectedSystemApp)
                 {
-                    var force = AppMessageBox.Show(
-                        $"自动备份失败：\n{backupResult.Message ?? "未知错误"}\n\n仍要强制卸载 [{app.Name}] 吗？\n（将无法通过 AMR 找回）",
-                        "备份失败",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning);
-                    if (force != MessageBoxResult.Yes)
+                    if (!ConfirmProtectedSystemUninstall(app))
                     {
                         return;
                     }
 
-                    backupPath = null;
-                }
-                else
-                {
-                    backupPath = backupResult.LocalAmrPath;
-                }
-
-                var finalConfirm = AppMessageBox.Show(
-                    BuildProtectedFinalConfirmMessage(app, backupPath),
-                    "确认卸载系统应用",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-                if (finalConfirm != MessageBoxResult.Yes)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                var backupChoice = AppMessageBox.Show(
-                    $"即将卸载 [{app.Name}] (ID: {app.AppId})。\n\n卸载前是否先备份 AMR？",
-                    "卸载应用",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question);
-
-                if (backupChoice == MessageBoxResult.Cancel)
-                {
-                    return;
-                }
-
-                if (backupChoice == MessageBoxResult.Yes)
-                {
-                    var dlg = new Microsoft.Win32.SaveFileDialog
-                    {
-                        Title = "卸载前备份 AMR",
-                        Filter = "AMR 小程序包|*.amr",
-                        FileName = AppBackupService.BuildDefaultFileName(app)
-                    };
-
-                    if (dlg.ShowDialog() != true)
-                    {
-                        return;
-                    }
-
-                    var backupResult = await BackupAppInternalAsync(app, dlg.FileName, "卸载前备份").ConfigureAwait(true);
+                    backupPath = AppBackupService.BuildAutoBackupPath(app);
+                    var backupResult = await BackupAppInternalAsync(app, backupPath, "受保护系统应用卸载前自动备份", manageBusyState: false).ConfigureAwait(true);
                     if (!backupResult.Success)
                     {
-                        var proceed = AppMessageBox.Show(
-                            $"备份失败：\n{backupResult.Message ?? "未知错误"}\n\n是否仍继续卸载？",
+                        var force = AppMessageBox.Show(
+                            $"自动备份失败：\n{backupResult.Message ?? "未知错误"}\n\n仍要强制卸载 [{app.Name}] 吗？\n（将无法通过 AMR 找回）",
                             "备份失败",
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Warning);
-                        if (proceed != MessageBoxResult.Yes)
+                        if (force != MessageBoxResult.Yes)
                         {
                             return;
                         }
+
+                        backupPath = null;
                     }
                     else
                     {
                         backupPath = backupResult.LocalAmrPath;
                     }
-                }
 
-                var confirm = AppMessageBox.Show(
-                    $"确定卸载 [{app.Name}] (ID: {app.AppId})？\n\n此操作不可撤销。",
-                    "确认卸载",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-                if (confirm != MessageBoxResult.Yes)
+                    var finalConfirm = AppMessageBox.Show(
+                        BuildProtectedFinalConfirmMessage(app, backupPath),
+                        "确认卸载系统应用",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+                    if (finalConfirm != MessageBoxResult.Yes)
+                    {
+                        return;
+                    }
+                }
+                else
                 {
-                    return;
-                }
-            }
+                    var backupChoice = AppMessageBox.Show(
+                        $"即将卸载 [{app.Name}] (ID: {app.AppId})。\n\n卸载前是否先备份 AMR？",
+                        "卸载应用",
+                        MessageBoxButton.YesNoCancel,
+                        MessageBoxImage.Question);
 
-            await ExecuteUninstallAsync(app, backupPath).ConfigureAwait(true);
+                    if (backupChoice == MessageBoxResult.Cancel)
+                    {
+                        return;
+                    }
+
+                    if (backupChoice == MessageBoxResult.Yes)
+                    {
+                        var dlg = new Microsoft.Win32.SaveFileDialog
+                        {
+                            Title = "卸载前备份 AMR",
+                            Filter = "AMR 小程序包|*.amr",
+                            FileName = AppBackupService.BuildDefaultFileName(app)
+                        };
+
+                        if (dlg.ShowDialog() != true)
+                        {
+                            return;
+                        }
+
+                        var backupResult = await BackupAppInternalAsync(app, dlg.FileName, "卸载前备份", manageBusyState: false).ConfigureAwait(true);
+                        if (!backupResult.Success)
+                        {
+                            var proceed = AppMessageBox.Show(
+                                $"备份失败：\n{backupResult.Message ?? "未知错误"}\n\n是否仍继续卸载？",
+                                "备份失败",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Warning);
+                            if (proceed != MessageBoxResult.Yes)
+                            {
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            backupPath = backupResult.LocalAmrPath;
+                        }
+                    }
+
+                    var confirm = AppMessageBox.Show(
+                        $"确定卸载 [{app.Name}] (ID: {app.AppId})？\n\n此操作不可撤销。",
+                        "确认卸载",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning);
+                    if (confirm != MessageBoxResult.Yes)
+                    {
+                        return;
+                    }
+                }
+
+                await ExecuteUninstallAsync(app, backupPath, manageBusyState: false).ConfigureAwait(true);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private static bool ConfirmProtectedSystemUninstall(InstalledApp app)
@@ -2205,9 +2291,13 @@ namespace YoudaoPenToolbox.ViewModels
                 "如需找回，请将此 .amr 文件拖至「APP 安装」页安装。";
         }
 
-        private async Task<AppBackupResult> BackupAppInternalAsync(InstalledApp app, string localPath, string logPrefix)
+        private async Task<AppBackupResult> BackupAppInternalAsync(InstalledApp app, string localPath, string logPrefix, bool manageBusyState = true)
         {
-            IsBusy = true;
+            if (manageBusyState)
+            {
+                IsBusy = true;
+            }
+
             StatusMessage = $"正在备份 {app.Name}...";
             try
             {
@@ -2236,50 +2326,72 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
-                IsBusy = false;
+                if (manageBusyState)
+                {
+                    IsBusy = false;
+                }
             }
         }
 
-        private async Task ExecuteUninstallAsync(InstalledApp app, string backupPath)
+        private async Task ExecuteUninstallAsync(InstalledApp app, string backupPath, bool manageBusyState = true)
         {
-            IsBusy = true;
+            if (manageBusyState)
+            {
+                IsBusy = true;
+            }
+
             StatusMessage = $"正在卸载 {app.Name}...";
+            var uninstallSucceeded = false;
             try
             {
-                var result = await _cliService.ExecuteRawAsync(SelectedDevice.Serial, $"uninstall {app.AppId}");
+                var deviceSerial = SelectedDevice.Serial;
+                var result = await _cliService.ExecuteRawAsync(deviceSerial, $"uninstall {app.AppId}");
                 var formatted = MiniAppCliOutputFormatter.Format("uninstall", result);
                 var parsed = MiniAppCliResultParser.Parse(result);
                 CommandOutput = $"[{DateTime.Now:HH:mm:ss}] uninstall {app.Name}\r\n{formatted}\r\n\r\n{CommandOutput}";
 
-                if (parsed.HasJson && parsed.ReturnCode.HasValue)
+                uninstallSucceeded = MiniAppCliResultParser.LooksLikeCliSuccess(result, parsed);
+                if (uninstallSucceeded)
                 {
-                    if (parsed.IsSuccess)
-                    {
-                        Growl.Success($"已卸载 {app.Name}");
-                    }
-                    else
-                    {
-                        Growl.Warning(parsed.Summary ?? "卸载可能未成功，请查看输出");
-                    }
+                    Growl.Success($"已卸载 {app.Name}");
+                }
+                else if (parsed.HasJson)
+                {
+                    Growl.Warning(parsed.Summary ?? "卸载可能未成功，请查看输出");
                 }
                 else
                 {
-                    Growl.Info("卸载命令已发送");
+                    Growl.Warning("卸载结果不确定，请查看输出");
                 }
 
                 if (!string.IsNullOrWhiteSpace(backupPath) && System.IO.File.Exists(backupPath))
                 {
-                    AppMessageBox.Show(
-                        $"应用 [{app.Name}] 已执行卸载。\n\n" +
-                        $"AMR 备份位置：\n{backupPath}\n\n" +
-                        "如需找回应用，请将此 .amr 文件拖至「APP 安装」页进行安装。",
-                        "AMR 应用找回",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    if (uninstallSucceeded)
+                    {
+                        AppMessageBox.Show(
+                            $"应用 [{app.Name}] 已卸载。\n\n" +
+                            $"AMR 备份位置：\n{backupPath}\n\n" +
+                            "如需找回应用，请将此 .amr 文件拖至「APP 安装」页进行安装。",
+                            "AMR 应用找回",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        AppMessageBox.Show(
+                            $"卸载可能未成功，但 AMR 备份已保存：\n{backupPath}\n\n请查看 miniapp_cli 输出确认结果。",
+                            "卸载结果不确定",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
                 }
 
-                await RefreshAppsAsync();
-                StatusMessage = "卸载流程完成";
+                if (string.Equals(deviceSerial, SelectedDevice?.Serial, StringComparison.OrdinalIgnoreCase))
+                {
+                    await RefreshAppsAsync(manageBusyState: false, includeSizes: false).ConfigureAwait(true);
+                }
+
+                StatusMessage = uninstallSucceeded ? "卸载完成" : "卸载流程结束";
             }
             catch (Exception ex)
             {
@@ -2288,7 +2400,10 @@ namespace YoudaoPenToolbox.ViewModels
             }
             finally
             {
-                IsBusy = false;
+                if (manageBusyState)
+                {
+                    IsBusy = false;
+                }
             }
         }
 
@@ -3264,7 +3379,8 @@ namespace YoudaoPenToolbox.ViewModels
                 Owner = Application.Current.MainWindow
             };
 
-            if (dialog.ShowDialog() != true || !dialog.SelectedAction.HasValue)
+            dialog.ShowDialog();
+            if (!dialog.SelectedAction.HasValue)
             {
                 return;
             }

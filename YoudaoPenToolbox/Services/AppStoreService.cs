@@ -5,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Newtonsoft.Json.Linq;
@@ -93,7 +94,7 @@ namespace YoudaoPenToolbox.Services
                     var image = LoadBitmapFromBytes(bytes);
                     if (image != null)
                     {
-                        item.Icon = image;
+                        await Application.Current.Dispatcher.InvokeAsync(() => item.Icon = image);
                     }
                 }
             }
@@ -102,7 +103,7 @@ namespace YoudaoPenToolbox.Services
             }
             finally
             {
-                item.IsIconLoading = false;
+                await Application.Current.Dispatcher.InvokeAsync(() => item.IsIconLoading = false);
             }
         }
 

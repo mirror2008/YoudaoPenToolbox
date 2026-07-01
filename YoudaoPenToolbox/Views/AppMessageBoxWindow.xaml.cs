@@ -119,7 +119,11 @@ namespace YoudaoPenToolbox.Views
 
             if (isPrimary)
             {
-                button.Style = (Style)FindResource(useDanger ? "DialogDangerButton" : "PrimaryActionButton");
+                var style = FindDialogButtonStyle(useDanger);
+                if (style != null)
+                {
+                    button.Style = style;
+                }
             }
 
             button.Click += (_, __) =>
@@ -129,6 +133,12 @@ namespace YoudaoPenToolbox.Views
             };
 
             ButtonPanel.Children.Add(button);
+        }
+
+        private static Style FindDialogButtonStyle(bool useDanger)
+        {
+            var key = useDanger ? "DialogDangerButton" : "PrimaryActionButton";
+            return Application.Current?.TryFindResource(key) as Style;
         }
     }
 }
