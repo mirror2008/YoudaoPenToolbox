@@ -837,8 +837,8 @@
                     <TabItem Header="快捷工具">
                         <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
-                                <TextBlock Text="ADB 持久化" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                                <TextBlock Text="连接设备并已解锁 ADB 时，若未配置持久化将自动配置。"
+                                <TextBlock Text="辅助助手" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                <TextBlock Text="连接设备并已解锁 ADB 时，将自动安装辅助助手。"
                                            TextWrapping="Wrap" Margin="0,0,0,8"
                                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                                 <TextBlock Text="{Binding AdbPersistSummary}" TextWrapping="Wrap" Margin="0,0,0,8"
@@ -846,14 +846,14 @@
                                 <WrapPanel Margin="0,0,0,16">
                                     <Button Content="刷新状态" Command="{Binding RefreshAdbPersistStatusCommand}"
                                             Width="120" Height="36" Margin="0,0,8,8"/>
-                                    <Button Content="启用持久化" Command="{Binding EnableAdbPersistCommand}"
+                                    <Button Content="安装助手" Command="{Binding EnableAdbPersistCommand}"
                                             Style="{StaticResource ButtonPrimary}"
                                             Width="120" Height="36" Margin="0,0,8,8"/>
-                                    <Button Content="关闭持久化" Command="{Binding DisableAdbPersistCommand}"
+                                    <Button Content="卸载助手" Command="{Binding DisableAdbPersistCommand}"
                                             Width="120" Height="36" Margin="0,0,8,8"/>
-                                    <Button Content="立即生效" Command="{Binding ApplyAdbAuthNowCommand}"
+                                    <Button Content="启动助手" Command="{Binding ApplyAdbAuthNowCommand}"
                                             Width="120" Height="36" Margin="0,0,8,8"/>
-                                    <Button Content="测试钩子" Command="{Binding TestAdbPersistHookCommand}"
+                                    <Button Content="自检" Command="{Binding TestAdbPersistHookCommand}"
                                             Width="120" Height="36" Margin="0,0,8,8"/>
                                 </WrapPanel>
 

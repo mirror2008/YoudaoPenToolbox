@@ -2905,7 +2905,7 @@ namespace YoudaoPenToolbox.ViewModels
             _adbPersistAutoAttemptSerials.Add(serial);
             try
             {
-                StatusMessage = "检测到未配置 ADB 持久化，正在自动配置...";
+                StatusMessage = "检测到未安装辅助助手，正在自动安装...";
                 var result = await _adbPersistService.EnsurePersistAsync(serial).ConfigureAwait(true);
 
                 if (result.Status != null)
@@ -2916,20 +2916,20 @@ namespace YoudaoPenToolbox.ViewModels
                 switch (result.Action)
                 {
                     case AdbPersistEnsureAction.Configured:
-                        Growl.Success("已自动配置 ADB 持久化，重启后授权仍有效");
-                        StatusMessage = "ADB 持久化已自动配置";
+                        Growl.Success("已自动安装辅助助手");
+                        StatusMessage = "辅助助手已安装";
                         break;
                     case AdbPersistEnsureAction.Failed:
-                        AdbPersistSummary = $"未配置（自动配置失败: {result.ErrorMessage}）";
-                        Growl.Warning($"ADB 持久化自动配置失败: {result.ErrorMessage}");
-                        StatusMessage = "ADB 持久化自动配置失败";
+                        AdbPersistSummary = $"未安装（自动安装失败: {result.ErrorMessage}）";
+                        Growl.Warning($"辅助助手自动安装失败: {result.ErrorMessage}");
+                        StatusMessage = "辅助助手自动安装失败";
                         break;
                 }
             }
             catch (Exception ex)
             {
-                AdbPersistSummary = $"未配置（自动配置失败: {ex.Message}）";
-                Growl.Warning($"ADB 持久化自动配置失败: {ex.Message}");
+                AdbPersistSummary = $"未安装（自动安装失败: {ex.Message}）";
+                Growl.Warning($"辅助助手自动安装失败: {ex.Message}");
                 StatusMessage = ex.Message;
             }
             finally
@@ -2946,7 +2946,7 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             IsBusy = true;
-            StatusMessage = "正在配置 ADB 持久化...";
+            StatusMessage = "正在安装辅助助手...";
             try
             {
                 if (!await _adbService.IsShellAccessibleAsync(SelectedDevice.Serial).ConfigureAwait(true))
@@ -2956,14 +2956,14 @@ namespace YoudaoPenToolbox.ViewModels
 
                 var result = await _adbPersistService.EnableAsync(SelectedDevice.Serial).ConfigureAwait(true);
                 var diagnose = await _adbPersistService.DiagnoseAsync(SelectedDevice.Serial).ConfigureAwait(true);
-                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 启用 ADB 持久化\r\n{result}\r\n\r\n--- 诊断 ---\r\n{diagnose}\r\n\r\n{CommandOutput}";
-                Growl.Success("skip_re 持久化已配置，建议重启设备验证");
-                StatusMessage = "ADB 持久化配置完成";
+                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 安装辅助助手\r\n{result}\r\n\r\n--- 诊断 ---\r\n{diagnose}\r\n\r\n{CommandOutput}";
+                Growl.Success("辅助助手已安装");
+                StatusMessage = "辅助助手安装完成";
                 await RefreshAdbPersistStatusAsync().ConfigureAwait(true);
             }
             catch (Exception ex)
             {
-                Growl.Error($"配置失败: {ex.Message}");
+                Growl.Error($"安装失败: {ex.Message}");
                 StatusMessage = ex.Message;
             }
             finally
@@ -2980,18 +2980,18 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             IsBusy = true;
-            StatusMessage = "正在移除 ADB 持久化配置...";
+            StatusMessage = "正在卸载辅助助手...";
             try
             {
                 var result = await _adbPersistService.DisableAsync(SelectedDevice.Serial).ConfigureAwait(true);
-                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 关闭 ADB 持久化\r\n{result}\r\n\r\n{CommandOutput}";
-                Growl.Info("ADB 持久化配置已移除");
-                StatusMessage = "已移除 ADB 持久化";
+                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 卸载辅助助手\r\n{result}\r\n\r\n{CommandOutput}";
+                Growl.Info("辅助助手已卸载");
+                StatusMessage = "已卸载辅助助手";
                 await RefreshAdbPersistStatusAsync().ConfigureAwait(true);
             }
             catch (Exception ex)
             {
-                Growl.Error($"移除失败: {ex.Message}");
+                Growl.Error($"卸载失败: {ex.Message}");
                 StatusMessage = ex.Message;
             }
             finally
@@ -3008,13 +3008,13 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             IsBusy = true;
-            StatusMessage = "正在创建授权文件...";
+            StatusMessage = "正在启动辅助助手...";
             try
             {
                 var result = await _adbPersistService.ApplyImmediateAsync(SelectedDevice.Serial).ConfigureAwait(true);
-                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 立即创建授权文件\r\n{result}\r\n\r\n{CommandOutput}";
-                Growl.Success("授权文件已创建（仅当前开机有效）");
-                StatusMessage = "授权文件已创建";
+                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 启动辅助助手\r\n{result}\r\n\r\n{CommandOutput}";
+                Growl.Success("辅助助手已启动");
+                StatusMessage = "辅助助手已启动";
                 await RefreshAdbPersistStatusAsync().ConfigureAwait(true);
             }
             catch (Exception ex)
@@ -3036,14 +3036,14 @@ namespace YoudaoPenToolbox.ViewModels
             }
 
             IsBusy = true;
-            StatusMessage = "正在测试 ADB 持久化钩子...";
+            StatusMessage = "正在自检辅助助手...";
             try
             {
                 var result = await _adbPersistService.TestHookAsync(SelectedDevice.Serial).ConfigureAwait(true);
 
-                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 测试 ADB 持久化\r\n{result}\r\n\r\n{CommandOutput}";
-                Growl.Success("测试完成，请查看输出");
-                StatusMessage = "测试完成";
+                CommandOutput = $"[{DateTime.Now:HH:mm:ss}] 辅助助手自检\r\n{result}\r\n\r\n{CommandOutput}";
+                Growl.Success("自检完成，请查看输出");
+                StatusMessage = "自检完成";
                 await RefreshAdbPersistStatusAsync().ConfigureAwait(true);
             }
             catch (Exception ex)

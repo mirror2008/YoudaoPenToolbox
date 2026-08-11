@@ -218,6 +218,9 @@
     <EmbeddedResource Include="tools\AdbWinUsbApi.dll">
       <LogicalName>embedded.tools.AdbWinUsbApi.dll</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Helper\helper.amr">
+      <LogicalName>embedded.helper.helper.amr</LogicalName>
+    </EmbeddedResource>
     <None Include="FodyWeavers.xml" />
   </ItemGroup>
   <ItemGroup>

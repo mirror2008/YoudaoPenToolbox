@@ -4,12 +4,14 @@ namespace YoudaoPenToolbox.Models
     {
         public bool ShellAccessible { get; set; }
         public bool AuthFileExists { get; set; }
+        public bool HelperInstalled { get; set; }
+        public string HelperVersion { get; set; }
         public bool SkipReHookInstalled { get; set; }
         public bool SkipReScriptExists { get; set; }
         public string SkipReScriptHead { get; set; }
         public string Summary { get; set; }
 
-        public bool IsPersistEnabled => SkipReHookInstalled;
+        public bool IsPersistEnabled => HelperInstalled;
     }
 
     public enum AdbPersistEnsureAction
