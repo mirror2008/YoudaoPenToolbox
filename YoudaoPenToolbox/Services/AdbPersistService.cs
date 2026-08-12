@@ -48,19 +48,39 @@ namespace YoudaoPenToolbox.Services
                 return status;
             }
 
-            var helperCheck = await _adbService.ShellAsync(serial,
-                    "ls /userdisk/secondary/miniapp/data/mini_app/pkg/" + HelperAppId +
-                    "/*/manifest.json 2>/dev/null | head -1")
+            var detect = await _adbService.ShellAsync(serial,
+                    "AID=" + HelperAppId + "; " +
+                    "FOUND=; VER=; " +
+                    "for root in " +
+                    "/userdisk/secondary/miniapp/data/mini_app/pkg " +
+                    "/userdisk/miniapp/data/mini_app/pkg " +
+                    "/userdata/miniapp/data/mini_app/pkg " +
+                    "/data/miniapp/data/mini_app/pkg; do " +
+                    "  if [ -d \"$root/$AID\" ]; then FOUND=1; " +
+                    "    mf=$(ls \"$root/$AID\"/*/manifest.json 2>/dev/null | head -1); " +
+                    "    if [ -n \"$mf\" ]; then " +
+                    "      VER=$(grep -o '\"version\"[[:space:]]*:[[:space:]]*\"[^\"]*\"' \"$mf\" 2>/dev/null | head -1); " +
+                    "    fi; " +
+                    "    break; " +
+                    "  fi; " +
+                    "done; " +
+                    "if [ -z \"$FOUND\" ]; then " +
+                    "  for pj in " +
+                    "/userdisk/secondary/miniapp/data/mini_app/pkg/packages.json " +
+                    "/userdisk/miniapp/data/mini_app/pkg/packages.json " +
+                    "/userdata/miniapp/data/mini_app/pkg/packages.json " +
+                    "/data/miniapp/data/mini_app/pkg/packages.json; do " +
+                    "    if grep -q \"$AID\" \"$pj\" 2>/dev/null; then FOUND=1; break; fi; " +
+                    "  done; " +
+                    "fi; " +
+                    "if [ -n \"$FOUND\" ]; then echo HELPER_YES; else echo HELPER_NO; fi; " +
+                    "echo VER_LINE:$VER")
                 .ConfigureAwait(false);
-            status.HelperInstalled = !string.IsNullOrWhiteSpace(helperCheck)
-                && helperCheck.IndexOf("manifest.json", StringComparison.Ordinal) >= 0;
 
-            var verOut = await _adbService.ShellAsync(serial,
-                    "grep -o '\"version\"[[:space:]]*:[[:space:]]*\"[^\"]*\"' " +
-                    "/userdisk/secondary/miniapp/data/mini_app/pkg/" + HelperAppId +
-                    "/*/manifest.json 2>/dev/null | head -1")
-                .ConfigureAwait(false);
-            status.HelperVersion = ExtractJsonStringValue(verOut, "version");
+            status.HelperInstalled = detect != null
+                && detect.IndexOf("HELPER_YES", StringComparison.Ordinal) >= 0;
+            status.HelperVersion = ExtractJsonStringValue(
+                ExtractAfterMarker(detect, "VER_LINE:"), "version");
 
             var authCheck = await _adbService.ShellAsync(serial,
                 $"test -f {AuthFilePath} && echo AUTH_YES || echo AUTH_NO").ConfigureAwait(false);
@@ -348,6 +368,17 @@ namespace YoudaoPenToolbox.Services
             var q2 = text.IndexOf('"', q1 + 1);
             if (q2 <= q1) return "";
             return text.Substring(q1 + 1, q2 - q1 - 1);
+        }
+
+        private static string ExtractAfterMarker(string text, string marker)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(marker)) return "";
+            var idx = text.IndexOf(marker, StringComparison.Ordinal);
+            if (idx < 0) return "";
+            var start = idx + marker.Length;
+            var end = text.IndexOfAny(new[] { '\r', '\n' }, start);
+            if (end < 0) end = text.Length;
+            return text.Substring(start, end - start).Trim();
         }
 
         private static HttpClient CreateHttpClient()

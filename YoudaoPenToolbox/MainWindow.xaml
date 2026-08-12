@@ -838,7 +838,7 @@
                         <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <TextBlock Text="辅助助手" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                                <TextBlock Text="连接设备并已解锁 ADB 时，将自动安装辅助助手。"
+                                <TextBlock Text="连接设备并已解锁 ADB 时，将自动安装辅助助手。助手内可自行开关「ADB 持久化」；开启后每次进入助手会自动写入验证文件跳过密码验证。"
                                            TextWrapping="Wrap" Margin="0,0,0,8"
                                            Foreground="{DynamicResource SecondaryTextBrush}"/>
                                 <TextBlock Text="{Binding AdbPersistSummary}" TextWrapping="Wrap" Margin="0,0,0,8"
